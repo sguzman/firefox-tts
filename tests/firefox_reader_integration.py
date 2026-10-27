@@ -421,25 +421,6 @@ def main() -> None:
                     assert theme["light"][key] != theme["dark"][key], (key, theme)
                 print("PASS: Firefox HUD follows site light/dark and omits options shortcut")
 
-                # The options are reached through the browser API that
-                # about:addons calls, not via the removed HUD shortcut.
-                options_url = base.execute(host, session,
-                    "return document.documentElement.dataset.firefoxTtsQaOptions")
-                assert options_url.startswith("moz-extension://"), options_url
-                original_window = base.webdriver(host, session, "GET", "window")
-                original_handles = set(base.webdriver(host, session, "GET", "window/handles"))
-                base.execute(host, session,
-                    'document.dispatchEvent(new Event("firefox-tts-qa-open-options"))')
-                options_handles = base.eventually(
-                    lambda: list(set(base.webdriver(host, session, "GET", "window/handles"))
-                                 - original_handles),
-                    timeout=12, explanation="Firefox browser API did not open extension options")
-                options_window = options_handles[0]
-                # Marionette cannot inspect privileged moz-extension:// tabs.
-                # The injected QA-only options probe will report the rendered
-                # editor and its successful synth to the ordinary localhost
-                # page through runtime messaging; assert that report below.
-                base.webdriver(host, session, "POST", "window", {"handle": original_window})
                 base.execute(host, session,
                     "document.querySelector('#editor').focus(); return document.activeElement.id")
                 base.execute(host, session,
@@ -473,6 +454,25 @@ def main() -> None:
                     "return Number(document.documentElement.dataset.firefoxTtsQaMediaActive || 0) === 0"),
                     timeout=8, explanation="Second Quit leaked overlapping WAV")
                 print("PASS: Real Firefox Stop/Quit/reopen leaves zero or one active WAV and preserves editor focus")
+                # The options are reached through the browser API that
+                # about:addons calls, not via the removed HUD shortcut.
+                options_url = base.execute(host, session,
+                    "return document.documentElement.dataset.firefoxTtsQaOptions")
+                assert options_url.startswith("moz-extension://"), options_url
+                original_window = base.webdriver(host, session, "GET", "window")
+                original_handles = set(base.webdriver(host, session, "GET", "window/handles"))
+                base.execute(host, session,
+                    'document.dispatchEvent(new Event("firefox-tts-qa-open-options"))')
+                options_handles = base.eventually(
+                    lambda: list(set(base.webdriver(host, session, "GET", "window/handles"))
+                                 - original_handles),
+                    timeout=12, explanation="Firefox browser API did not open extension options")
+                options_window = options_handles[0]
+                # Marionette cannot inspect privileged moz-extension:// tabs.
+                # The injected QA-only options probe will report the rendered
+                # editor and its successful synth to the ordinary localhost
+                # page through runtime messaging; assert that report below.
+                base.webdriver(host, session, "POST", "window", {"handle": original_window})
                 report_json = base.eventually(lambda: base.execute(host, session,
                     "return document.documentElement.dataset.firefoxTtsQaReport"),
                     timeout=18, explanation="Firefox QA-only options probe did not return a result")
