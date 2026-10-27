@@ -51,6 +51,10 @@ def qa_package(release: Path, destination: Path) -> None:
                   this.addEventListener("playing", () => {
                     root.dataset.firefoxTtsQaMediaPlaying = "true";
                   }, { once: true });
+                  this.addEventListener("error", () => {
+                    root.dataset.firefoxTtsQaMediaError =
+                      String(this.error?.code || "media-error");
+                  }, { once: true });
                   this.addEventListener("timeupdate", () => {
                     const previous = Number(root.dataset.firefoxTtsQaMediaTime || 0);
                     root.dataset.firefoxTtsQaMediaTime =
@@ -266,7 +270,10 @@ def main() -> None:
                                 timeout=15, explanation="QA driver did not start")
                 caps = {"capabilities": {"alwaysMatch": {
                     "browserName": "firefox",
-                    "moz:firefoxOptions": {"args": ["-headless"], "prefs": {"media.autoplay.default": 0}}
+                    "moz:firefoxOptions": {"args": ["-headless"], "prefs": {
+                        "media.autoplay.default": 0,
+                        "media.cubeb.force_mock_context": True
+                    }}
                 }}}
                 created = base.request(host + "/session", "POST", caps, timeout=55)
                 session = created["value"]["sessionId"]
@@ -299,9 +306,21 @@ def main() -> None:
                 base.eventually(lambda: base.execute(host, session,
                     "return document.documentElement.dataset.firefoxTtsQaMediaAttempted === 'true'"),
                     timeout=16, explanation="Real Firefox reader never attempted playback of synthesized WAV")
-                base.eventually(lambda: base.execute(host, session,
-                    """return Number(document.documentElement.dataset.firefoxTtsQaMediaTime || 0) > 0.12"""),
-                    timeout=12, explanation="Real Firefox Audio element did not advance its playback clock")
+                try:
+                    base.eventually(lambda: base.execute(host, session,
+                        """return Number(document.documentElement.dataset.firefoxTtsQaMediaTime || 0) > 0.12"""),
+                        timeout=12, explanation="Real Firefox Audio element did not advance its playback clock")
+                except AssertionError:
+                    debug = base.execute(host, session,
+                        """const d=document.documentElement.dataset;
+                           return {attempted:d.firefoxTtsQaMediaAttempted,
+                             playing:d.firefoxTtsQaMediaPlaying,
+                             time:d.firefoxTtsQaMediaTime,
+                             ended:d.firefoxTtsQaMediaEnded,
+                             error:d.firefoxTtsQaMediaError,
+                             toolbar:document.querySelector('[data-edge-tts-status]')?.textContent};""")
+                    print("Firefox media sink diagnostics:", debug, file=sys.stderr, flush=True)
+                    raise
                 print("PASS: Actual Gecko audio element decoded synthetic Piper WAV and advanced media time")
                 print("PASS: Firefox Native Messaging discovered synthetic CPU Piper voice")
                 # Exercise live settings without modifying any real profile.
