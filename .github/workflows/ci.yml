@@ -46,3 +46,5 @@ jobs:
         run: python3 tests/firefox_reader_integration.py
       - name: Verify normal Firefox autoplay policy still starts and advances Piper audio
         run: FIREFOX_TTS_QA_AUTOPLAY=1 python3 tests/firefox_reader_integration.py
+      - name: Measure 2x Gecko Piper sentence handoff with no intentional pause
+        run: FIREFOX_TTS_QA_FAST=1 python3 tests/firefox_reader_integration.py
