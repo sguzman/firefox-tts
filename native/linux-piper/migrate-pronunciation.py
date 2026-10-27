@@ -80,7 +80,7 @@ def main(argv: list[str] | None = None) -> int:
             print("Unrecognized backup filename", file=sys.stderr)
             return 2
         backup = history / basename
-        if (history.is_symlink() or backup.is_symlink() or not backup.is_file():
+        if history.is_symlink() or backup.is_symlink() or not backup.is_file():
             print("Backup missing or unsafe", file=sys.stderr)
             return 2
         if target.is_symlink() or target.parent.is_symlink():
