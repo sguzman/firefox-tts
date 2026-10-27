@@ -134,7 +134,7 @@ def main() -> None:
                 print("PASS: No passive DOM injection before user shortcut")
 
                 execute(driver_base, session,
-                        "document.querySelector('#editor').focus(); return document.activeElement.id")
+                        "window.__ttsQaKeys=[]; window.addEventListener('keydown', e=>window.__ttsQaKeys.push([e.key,e.altKey,e.shiftKey,e.ctrlKey]),true); document.querySelector('#editor').focus(); return document.activeElement.id")
                 webdriver(driver_base, session, "POST", "actions", {"actions": [
                     {"type": "key", "id": "keyboard", "actions": [
                         {"type": "keyDown", "value": ALT},
@@ -145,6 +145,20 @@ def main() -> None:
                         {"type": "keyUp", "value": ALT}
                     ]}
                 ]})
+                print("Shortcut diagnostics:", execute(driver_base, session,
+                      "return { keys: window.__ttsQaKeys, active:document.activeElement?.id, value:document.querySelector('#editor').value, hasFocus:document.hasFocus() }"), flush=True)
+                try:
+                    webdriver(driver_base, session, "POST", "moz/context", {"context":"chrome"})
+                    toolbar_buttons = execute(driver_base, session,
+                      "return [...document.querySelectorAll('toolbarbutton')].map(x=>({id:x.id,label:x.getAttribute('label'),tooltip:x.getAttribute('tooltiptext')})).filter(x=>JSON.stringify(x).toLowerCase().includes('tts'))")
+                    print("Firefox toolbar widgets:", toolbar_buttons, flush=True)
+                except Exception as exc:
+                    print("Privileged chrome toolbar inspection unavailable:", str(exc)[:300], flush=True)
+                finally:
+                    try:
+                        webdriver(driver_base, session, "POST", "moz/context", {"context":"content"})
+                    except Exception:
+                        pass
                 eventually(lambda: execute(driver_base, session,
                     "return Boolean(document.querySelector('#edge-tts-toolbar'))"),
                     explanation="Firefox action shortcut did not inject reader toolbar")
