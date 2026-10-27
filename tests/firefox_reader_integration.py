@@ -42,6 +42,39 @@ def qa_package(release: Path, destination: Path) -> None:
         await browser.scripting.executeScript({ target: { tabId },
           files: FILE_LIST });
         await browser.tabs.sendMessage(tabId, { type: "EDGE_TTS_TOGGLE_V2" });
+        // QA-only ChatGPT-profile fixture: actual DOM, no real chat data.
+        await browser.scripting.executeScript({
+          target: { tabId },
+          func: () => {
+            const turn = document.createElement("section");
+            turn.setAttribute("data-testid", "conversation-turn-qa");
+            turn.setAttribute("data-turn", "assistant");
+            turn.innerHTML = [
+              '<div data-message-author-role="assistant"><p>Synthetic assistant reply.</p></div>',
+              '<div class="ProseMirror" contenteditable="true">',
+              '<div>Unique synthetic Writing Block prose.</div>',
+              '<textarea>Private composer text must not be read.</textarea>',
+              '<span role="status">Hidden status announcement.</span>',
+              '</div>'
+            ].join("");
+            document.body.appendChild(turn);
+            const doc = {
+              location: { hostname: "chatgpt.com" },
+              querySelectorAll: document.querySelectorAll.bind(document),
+              documentElement: document.documentElement,
+              body: document.body
+            };
+            try {
+              const model = globalThis.EdgeTtsExtension.TextModel.buildReadableModel(doc);
+              document.documentElement.dataset.firefoxTtsQaWriting = JSON.stringify({
+                profile: model.profile, blocks: model.blocks.map(block => block.text)
+              });
+            } finally {
+              turn.remove();
+            }
+          }
+        });
+
         // QA-only metadata: production manifest never includes this bridge.
         await browser.scripting.executeScript({
           target: { tabId },
@@ -193,6 +226,17 @@ def main() -> None:
                     """return [...document.querySelector('[data-edge-tts-voice]').options]
                        .some(o => o.textContent.includes('Amy Low'))"""),
                     timeout=20, explanation="Real Firefox did not discover fake local Piper voice")
+                writing_json = base.eventually(lambda: base.execute(host, session,
+                    "return document.documentElement.dataset.firefoxTtsQaWriting"),
+                    timeout=8, explanation="Synthetic ChatGPT Writing Block probe missing")
+                writing = json.loads(writing_json)
+                assert writing["profile"] == "chatgpt", writing
+                all_prose = " ".join(writing["blocks"])
+                assert "Unique synthetic Writing Block prose." in all_prose, writing
+                assert "Synthetic assistant reply." in all_prose, writing
+                assert "Private composer text must not be read." not in all_prose, writing
+                assert "Hidden status announcement." not in all_prose, writing
+                print("PASS: Real Firefox extracts ChatGPT assistant Writing Blocks but excludes composer/status")
                 print("PASS: Firefox Native Messaging discovered synthetic CPU Piper voice")
                 # Exercise live settings without modifying any real profile.
                 speed = base.execute(host, session,
