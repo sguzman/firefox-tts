@@ -343,19 +343,17 @@
     }
 
     getVoices() {
-      return mergeVoices(super.getVoices?.() || [], this.linuxPiperVoices);
+      // Firefox TTS exposes only the explicit CPU-local Piper catalog.
+      // Web Speech / remote voices must never become an implicit fallback.
+      return [...this.linuxPiperVoices];
     }
 
     onVoicesChanged(callback) {
-      const unsubscribe = super.onVoicesChanged?.(callback) || (() => {});
       this.linuxPiperVoiceListeners.add(callback);
       if (this.linuxPiperVoicesLoaded) {
         root.queueMicrotask?.(() => callback(this.getVoices()));
       }
-      return () => {
-        unsubscribe();
-        this.linuxPiperVoiceListeners.delete(callback);
-      };
+      return () => this.linuxPiperVoiceListeners.delete(callback);
     }
 
     async refreshLinuxPiperVoices() {
