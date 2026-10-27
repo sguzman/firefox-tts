@@ -6,6 +6,7 @@ from __future__ import annotations
 import base64
 import io
 import json
+import math
 import os
 import re
 import struct
@@ -302,6 +303,20 @@ def approximate_boundaries(text: str, duration_ms: float) -> list[dict[str, Any]
 # the temporary synthesized bytearray, never the ONNX model or its settings.
 # It preserves PCM length, sample rate, channel layout and word timings.
 PCM_EDGE_FADE_MS = 12
+# Gecko's pitch-preserving high-speed renderer restarts at each sentence WAV.
+# At >=1.8x, a longer *source-side* edge taper softens the transient without
+# changing the voice's pitch or adding samples/timing drift.
+HIGH_SPEED_EDGE_FADE_MS = 48
+
+
+def edge_fade_ms_for_rate(playback_rate: Any) -> int:
+    try:
+        rate = float(playback_rate)
+    except (ValueError, TypeError, OverflowError):
+        return PCM_EDGE_FADE_MS
+    if not math.isfinite(rate):
+        return PCM_EDGE_FADE_MS
+    return HIGH_SPEED_EDGE_FADE_MS if rate >= 1.8 else PCM_EDGE_FADE_MS
 
 
 def taper_pcm_edges(
@@ -338,6 +353,7 @@ def synthesize_worker(
     voice_id: str,
     text: str,
     cancel: threading.Event,
+    playback_rate: float = 1.0,
 ) -> None:
     global _active_request_id, _active_cancel, _active_thread
 
@@ -367,7 +383,8 @@ def synthesize_worker(
         if not pcm or not sample_rate or not sample_width or not channels:
             raise RuntimeError("Piper produced no audio")
 
-        taper_pcm_edges(pcm, sample_rate, sample_width, channels)
+        taper_pcm_edges(pcm, sample_rate, sample_width, channels,
+                        fade_ms=edge_fade_ms_for_rate(playback_rate))
         frames = len(pcm) / (sample_width * channels)
         duration_ms = (frames / sample_rate) * 1000.0
 
@@ -433,6 +450,7 @@ def start_synthesis(message: dict[str, Any]) -> None:
     request_id = str(message.get("requestId") or "")
     voice_id = str(message.get("voiceId") or "")
     text = str(message.get("text") or "")
+    playback_rate = message.get("playbackRate", 1.0)
 
     if not request_id or not voice_id or not text:
         send_message({"type": "error", "requestId": request_id, "message": "Missing requestId, voiceId, or text"})
@@ -452,7 +470,7 @@ def start_synthesis(message: dict[str, Any]) -> None:
         cancel = threading.Event()
         thread = threading.Thread(
             target=synthesize_worker,
-            args=(request_id, voice_id, text, cancel),
+            args=(request_id, voice_id, text, cancel, playback_rate),
             name=f"piper-{request_id}",
             daemon=True,
         )

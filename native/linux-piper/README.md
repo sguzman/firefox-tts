@@ -97,3 +97,9 @@ python3 native/linux-piper/migrate-pronunciation.py --apply --restore 'before-ed
 The current Firefox configuration is archived again before it is replaced.
 Neither operation modifies the original Edge configuration. Restoration
 rejects directory traversal, symlinked destinations and invalid JSON.
+
+High-speed boundary mitigation: when Firefox requests Piper audio with
+`playbackRate >= 1.8`, the CPU native host uses a longer 48 ms fade at
+sentence WAV edges (12 ms at lower rates). This retains sample count,
+position and pitch preservation; it is a mitigation for Gecko's high-speed
+onset artifacts, not a verified cure for every audio-device configuration.

@@ -146,6 +146,29 @@ class FakePiperProtocolTest(unittest.TestCase):
                              "middle samples are unmodified")
         self.assertEqual((self.voices / "en_US-amy-low.onnx").read_bytes(), self.voice_bytes)
 
+    def test_high_rate_native_message_keeps_wav_playable_and_models_unchanged(self):
+        self.handshake()
+        self.send({"type": "synthesize", "requestId": "high-rate",
+                   "voiceId": "en_US-amy-low",
+                   "text": "Synthetic high speed sentence.", "playbackRate": 1.9})
+        pcm_wav = bytearray()
+        until = time.monotonic() + 6
+        while True:
+            event = self.read(until)
+            if event["type"] == "audioChunk":
+                pcm_wav.extend(base64.b64decode(event["data"]))
+            if event["type"] == "error":
+                self.fail(event["message"])
+            if event["type"] == "synthesisEnd":
+                break
+        with wave.open(io.BytesIO(pcm_wav), "rb") as audio:
+            self.assertEqual(audio.getframerate(), 16000)
+            raw = audio.readframes(audio.getnframes())
+        self.assertEqual(len(raw), 4 * 3200 * 2)
+        self.assertEqual(struct.unpack_from("<h", raw, 0)[0], 0)
+        self.assertEqual(struct.unpack_from("<h", raw, len(raw)-2)[0], 0)
+        self.assertEqual((self.voices / "en_US-amy-low.onnx").read_bytes(), self.voice_bytes)
+
     def test_explicit_cpu_self_check_uses_existing_fake_model_read_only(self):
         script = HOST.parent / "self-test-cpu.sh"
         finished = subprocess.run(["bash", str(script), "en_US-amy-low"],

@@ -989,7 +989,8 @@
           voiceId: this.currentOptions?.voice?.voiceId,
           lang: this.currentOptions?.voice?.lang,
           pronunciationRevision: Number(payload.configRevision) || 0,
-          pronunciationSavedAt: Number(payload.configSavedAt) || 0
+          pronunciationSavedAt: Number(payload.configSavedAt) || 0,
+          playbackRate: this.directPlaybackRate
         })
       )
         .then((response) => {
