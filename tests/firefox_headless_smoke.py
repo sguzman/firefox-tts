@@ -159,6 +159,14 @@ def main() -> None:
                     toolbar_buttons = execute(driver_base, session,
                       "return [...document.querySelectorAll('toolbarbutton')].map(x=>({id:x.id,label:x.getAttribute('label'),tooltip:x.getAttribute('tooltiptext')})).filter(x=>JSON.stringify(x).toLowerCase().includes('tts'))")
                     print("Firefox toolbar widgets:", toolbar_buttons, flush=True)
+                    menu = execute(driver_base, session,
+                      """const b=document.getElementById('unified-extensions-button');
+                         if (b) b.click();
+                         return {button: Boolean(b), active: document.activeElement?.id,
+                           items:[...document.querySelectorAll('[extension-id], unified-extensions-item')]
+                             .map(x=>({tag:x.tagName,id:x.id,ext:x.getAttribute('extension-id'),
+                                      html:x.outerHTML.slice(0,1400)})).slice(0,12)};""")
+                    print("Unified extension menu:", menu, flush=True)
                 except Exception as exc:
                     print("Privileged chrome toolbar inspection unavailable:", str(exc)[:300], flush=True)
                 finally:
