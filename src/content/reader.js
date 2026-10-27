@@ -538,34 +538,10 @@
     }
 
     observeModelMutations() {
+      // No document-wide MutationObserver in Firefox TTS. The reader only
+      // re-checks live nodes as reading advances, or on explicit Refresh text.
+      // A constantly mutating ChatGPT page must never force global DOM work.
       this.disconnectModelMutationObserver();
-      if (
-        !this.enabled ||
-        !this.model?.blocks?.length ||
-        typeof root.MutationObserver !== "function" ||
-        !document.body
-      ) {
-        return;
-      }
-
-      this.modelMutationObserver = new root.MutationObserver((mutations) => {
-        if (this.retireStaleReaderGeneration()) return;
-        if (!this.enabled || this.stopped || this.modelStale) return;
-
-        if (
-          mutations.some((mutation) =>
-            this.mutationTouchesActiveModel(mutation)
-          )
-        ) {
-          this.markModelStale("active-readable-dom-mutated");
-        }
-      });
-
-      this.modelMutationObserver.observe(document.body, {
-        subtree: true,
-        childList: true,
-        characterData: true
-      });
     }
 
     restoreFreshCursorAfterMutation() {
