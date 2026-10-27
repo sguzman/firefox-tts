@@ -28,3 +28,11 @@ jobs:
         run: bash -n native/linux-piper/install-native-host.sh native/linux-piper/uninstall-native-host.sh
       - name: Native framing and disposable-home isolation tests
         run: python3 -m unittest discover -s tests -p 'test_*.py' -v
+
+  firefox-browser-smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run disposable Firefox + Geckodriver extension smoke
+        run: python3 tests/firefox_headless_smoke.py
