@@ -47,6 +47,10 @@ class FakePiperProtocolTest(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         root = Path(self.tmp.name)
         (root / "piper.py").write_text(FAKE_PIPER)
+        dist = root / "piper_tts-1.8.0.dist-info"
+        dist.mkdir()
+        (dist / "METADATA").write_text(
+            "Metadata-Version: 2.1\nName: piper-tts\nVersion: 1.8.0\n")
         self.voices = root / "edge-voices-readonly"
         self.voices.mkdir()
         (self.voices / "en_US-amy-low.onnx").write_bytes(b"synthetic-model")
@@ -56,6 +60,7 @@ class FakePiperProtocolTest(unittest.TestCase):
         env.update(PYTHONPATH=str(root), HOME=str(root), XDG_DATA_HOME=str(root / "data"),
                    EDGE_TTS_PIPER_VOICE_DIR=str(self.voices),
                    FIREFOX_TTS_DATA_HOME=str(root / "firefox-data"))
+        self.env = env
         self.proc = subprocess.Popen([sys.executable, str(HOST)], env=env,
                                      stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                      stderr=subprocess.PIPE, bufsize=0)
@@ -130,6 +135,18 @@ class FakePiperProtocolTest(unittest.TestCase):
             self.assertEqual(wav.getsampwidth(), 2)
             self.assertGreater(wav.getnframes(), 0)
         self.assertEqual((self.voices / "en_US-amy-low.onnx").read_bytes(), self.voice_bytes)
+
+    def test_explicit_cpu_self_check_uses_existing_fake_model_read_only(self):
+        script = HOST.parent / "self-test-cpu.sh"
+        finished = subprocess.run(["bash", str(script), "en_US-amy-low"],
+                                  env=self.env, capture_output=True, text=True, timeout=8)
+        self.assertEqual(finished.returncode, 0, finished.stderr)
+        self.assertIn("Piper self-test OK", finished.stdout)
+        self.assertIn("16000 Hz", finished.stdout)
+        self.assertEqual((self.voices / "en_US-amy-low.onnx").read_bytes(), self.voice_bytes)
+        wrong = subprocess.run(["bash", str(script), "../traversal"], env=self.env,
+                               capture_output=True, text=True, timeout=8)
+        self.assertEqual(wrong.returncode, 2)
 
     def test_cancel_request_does_not_emit_completed_speech(self):
         self.handshake()
