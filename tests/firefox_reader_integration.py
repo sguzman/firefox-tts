@@ -150,6 +150,25 @@ def main() -> None:
                 assert "1.3" in speed, speed
                 assert base.execute(host, session,
                     "return document.querySelector('#editor').value") == "Private editable text must not be read."
+                controls = base.execute(host, session,
+                    """const changes=[
+                         ['[data-edge-tts-volume]', '65', '[data-edge-tts-volume-value]'],
+                         ['[data-edge-tts-batch-chars]', '800', '[data-edge-tts-batch-chars-value]'],
+                         ['[data-edge-tts-sentence-pause]', '450', '[data-edge-tts-sentence-pause-value]']
+                       ];
+                       return changes.map(([field,val,output])=>{
+                         const element=document.querySelector(field);
+                         if(!element) return {field,error:'absent'};
+                         element.value=val;
+                         element.dispatchEvent(new Event('input',{bubbles:true}));
+                         element.dispatchEvent(new Event('change',{bubbles:true}));
+                         return {field, actual:element.value, output:document.querySelector(output)?.value};
+                       });""")
+                assert [row["actual"] for row in controls] == ["65", "800", "450"], controls
+                assert "65%" in controls[0]["output"], controls
+                assert "800" in controls[1]["output"], controls
+                assert "450" in controls[2]["output"], controls
+                print("PASS: Firefox volume, batching and sentence-pause controls respond")
                 print("PASS: Real Firefox synthetic voice catalog and speed controls")
                 print("PASS: Actual Firefox installed modules, built reader and mounted toolbar")
 
