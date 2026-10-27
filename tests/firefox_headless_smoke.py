@@ -98,7 +98,7 @@ def main() -> None:
         # this synthetic CI profile to inspect/click Firefox's real toolbar.
         firefox_binary = shutil.which("firefox")
         launcher = home / "firefox-qa-launcher"
-        launcher.write_text("#!/bin/sh\\nexec " + firefox_binary + " -remote-allow-system-access \\"$@\\"\\n")
+        launcher.write_text('#!/bin/sh\nexec ' + firefox_binary + ' -remote-allow-system-access "$@"\n')
         launcher.chmod(0o700)
         os.environ["HOME"] = str(home)
         os.environ["XDG_CONFIG_HOME"] = str(home / ".config")
