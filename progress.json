@@ -8,10 +8,10 @@
     "note": "Repository initially contained only LICENSE and .gitignore"
   },
   "asOf": "2026-10-27",
-  "completedWeight": 27,
+  "completedWeight": 33,
   "totalWeight": 100,
-  "percent": 27,
-  "roundDelta": 13,
+  "percent": 33,
+  "roundDelta": 6,
   "source": {
     "repo": "sguzman/edge-tts",
     "branch": "development/linux-piper-v1",
@@ -109,8 +109,12 @@
       "weight": 3,
       "title": "Remove Edge online and Windows-only playback dependencies",
       "acceptance": "No active references to Direct Read Aloud, chrome.tts, WIN-NATURAL or Windows host",
-      "status": "todo",
-      "evidence": []
+      "status": "done",
+      "evidence": [
+        "Piper engine getVoices() returns only native voices; reader refreshVoices filters non-Piper",
+        "Startup fast path and injected message handler remove Windows/online voice branches; Firefox UI only offers Piper",
+        "tests/piper-only.test.js passed in CI run 40528936546"
+      ]
     },
     {
       "id": "S04",
@@ -270,8 +274,12 @@
       "weight": 3,
       "title": "Test native messaging protocol and failure boundaries",
       "acceptance": "Synthetic framing, malformed frames, disconnects, cancellation and timeouts pass",
-      "status": "todo",
-      "evidence": []
+      "status": "done",
+      "evidence": [
+        "tests/native-failure.test.js covers handshake timeout, request timeout and disconnect",
+        "tests/test_host_isolation.py covers valid frames, oversized/malformed frames and config roundtrip",
+        "tests/firefox-native.test.js covers cancellation and synthetic playback owner; all green in run 40528936546"
+      ]
     },
     {
       "id": "T03",
@@ -334,19 +342,19 @@
       "evidence": []
     }
   ],
-  "previousPercent": 14,
-  "round": "firefox-platform-1",
+  "previousPercent": 27,
+  "round": "piper-only-protocol-1",
   "stageCompleted": {
     "Governance": 8,
-    "Core port": 10,
+    "Core port": 13,
     "Firefox integration": 6,
     "User experience": 0,
-    "Verification": 3,
+    "Verification": 6,
     "Release": 0
   },
   "lastGreenCI": {
-    "runId": 40527307392,
-    "headSha": "981b6df1398bb9332735b0b4f0d5b4bc10cb701a",
-    "note": "Synthetic/stdlib tests on GitHub Actions Linux runner, not a real Firefox browser or Piper model"
+    "runId": 40528936546,
+    "headSha": "807ceee6899fe93254daab12d1916b3b612b5dbc",
+    "note": "Synthetic Node and Python unit/integration tests; not real Firefox/Piper synthesis"
   }
 }
