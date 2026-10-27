@@ -10,7 +10,15 @@ function harness() {
   let serial = 0, audio;
   class FakeAudio {
     constructor() { this.currentTime = 0; this.volume = 1; this.playbackRate = 1; audio = this; }
-    play() { this.paused = false; this.onplaying?.(); return Promise.resolve(); }
+    play() {
+      if (this.failNextPlay) {
+        this.failNextPlay = false;
+        return Promise.reject(new Error("QA synthetic autoplay blocked"));
+      }
+      this.paused = false;
+      this.onplaying?.();
+      return Promise.resolve();
+    }
     pause() { this.paused = true; }
     load() {}
     removeAttribute(name) { if (name === "src") this.src = ""; }
@@ -111,4 +119,31 @@ test("A newly constructed event page begins without the old audio session", asyn
   assert.equal(fresh.player.getSession(), null);
   assert.equal(fresh.urls.size, 0);
   old.player.stopAll();
+});
+
+test("background WAV player survives autoplay denial and explicit resume", async () => {
+  const h = harness();
+  await h.player.handle(msg("autoplay", h.audioChunks), 11);
+  const paused = await h.player.handle({
+    type:"EDGE_TTS_PIPER_OFFSCREEN_PAUSE", playbackId:"autoplay"
+  }, 11);
+  assert.equal(paused.accepted, true);
+  assert.equal(h.ticks.size, 0);
+  h.audio.failNextPlay = true;
+  const blocked = await h.player.handle({
+    type:"EDGE_TTS_PIPER_OFFSCREEN_RESUME", playbackId:"autoplay"
+  }, 11);
+  assert.equal(blocked.accepted, false);
+  assert.match(blocked.error, /autoplay blocked/);
+  assert.equal(h.player.getSession().paused, true);
+  assert.equal(h.ticks.size, 0, "blocked media must not keep an active timer");
+  const resumed = await h.player.handle({
+    type:"EDGE_TTS_PIPER_OFFSCREEN_RESUME", playbackId:"autoplay"
+  }, 11);
+  assert.equal(resumed.accepted, true);
+  assert.equal(h.player.getSession().paused, false);
+  assert.equal(h.ticks.size, 1);
+  h.player.stopAll();
+  assert.equal(h.urls.size, 0);
+  assert.equal(h.ticks.size, 0);
 });
