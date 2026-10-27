@@ -1,0 +1,26 @@
+name: Firefox TTS static and synthetic tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  no-dependency-checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: JavaScript syntax validation
+        run: |
+          find src tests -type f -name '*.js' -print0 | xargs -0 -r -n1 node --check
+      - name: Synthetic platform tests (no npm)
+        run: node --test
+      - name: Native Python source syntax
+        run: python3 -m py_compile native/linux-piper/linux_piper_host.py
