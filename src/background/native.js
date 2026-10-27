@@ -152,7 +152,10 @@
   }
   function releaseAudio(tabId) {
     if (audioOwnerTabId !== tabId) return { released: false };
+    // A release must never leave old Piper work or extension-owned WAV alive.
     audioOwnerTabId = null;
+    cancelForTab(tabId);
+    bridge.player?.stopTab?.(tabId);
     return { released: true };
   }
   async function pronunciationPreview(message) {
@@ -206,13 +209,18 @@
       const text = String(message.text || "");
       const clientId = String(message.requestId || "");
       const voiceId = String(message.voiceId || "");
-      if (!Number.isInteger(tabId) || !text.trim() ||
-          text.length > MAX_SPEECH_CHARS || !voiceId || !clientId) {
+      if (!Number.isInteger(tabId) || audioOwnerTabId !== tabId ||
+          !text.trim() || text.length > MAX_SPEECH_CHARS || !voiceId || !clientId) {
         return { accepted: false, error: "Invalid Piper synthesis request." };
       }
       // A new click-seek or replacement batch makes prior native synthesis stale.
       cancelForTab(tabId);
       return ensureNative().then((connected) => {
+        // Stop, tab close or cross-tab preemption may occur during the native
+        // handshake; don't schedule a stale synthesis after its owner vanished.
+        if (audioOwnerTabId !== tabId) {
+          return { accepted: false, error: "Piper audio ownership expired" };
+        }
         const id = freshId("synthesize");
         let timer;
         const request = {
@@ -280,7 +288,9 @@
       return { cancelled: true };
     }
     if (type?.startsWith("EDGE_TTS_PIPER_OFFSCREEN_")) {
-      if (!Number.isInteger(tabId)) return { accepted: false, error: "Missing reader tab." };
+      if (!Number.isInteger(tabId) || audioOwnerTabId !== tabId) {
+        return { accepted: false, error: "Tab does not own Piper audio" };
+      }
       return bridge.player?.handle?.(message, tabId) ||
         { accepted: false, error: "Firefox background media player unavailable." };
     }
