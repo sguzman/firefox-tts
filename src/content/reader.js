@@ -14,7 +14,7 @@
     Highlighter,
     normalizeColor
   } = extension.Highlighter;
-  const { SpeechEngine, createSpeechBatch, isNaturalVoice } = extension.SpeechEngine;
+  const { SpeechEngine, createSpeechBatch } = extension.SpeechEngine;
   const { Toolbar } = extension.Toolbar;
 
   const EDITABLE_SELECTOR = [
@@ -32,7 +32,6 @@
     "[data-lexical-editor='true']",
     "[data-slate-editor='true']"
   ].join(",");
-  const isWinNaturalVoice = (voice) => voice?.__edgeTtsSource === "win-natural";
   const isLinuxPiperVoice = (voice) => voice?.__edgeTtsSource === "linux-piper";
   const DEFAULT_LINUX_PIPER_VOICE_ID = "en_US-amy-low";
   const DEFAULT_LINUX_PIPER_VOICE_NAME = "Amy Low";
@@ -42,11 +41,7 @@
   const LEGACY_LINUX_PIPER_DEFAULT_VOICE_NAME = "Ryan High";
 
   function voiceSourceKey(voice) {
-    if (isLinuxPiperVoice(voice)) return "linux-piper";
-    if (isWinNaturalVoice(voice)) return "win-natural";
-    if (voice?.__edgeTtsSource) return String(voice.__edgeTtsSource);
-    if (isNaturalVoice(voice)) return "online";
-    return "browser";
+    return isLinuxPiperVoice(voice) ? "linux-piper" : "unsupported";
   }
 
   const MIN_BATCH_CHARS = 400;
@@ -653,14 +648,14 @@
       if (
         !this.selectedVoice &&
         !this.voices.some((voice) =>
-          isNaturalVoice(voice) || isWinNaturalVoice(voice) || isLinuxPiperVoice(voice)
+          isLinuxPiperVoice(voice)
         )
       ) {
         this.toolbar.setStatus("Loading voices…");
         await this.speech.waitForVoices(
           350,
           (voices) => voices.some((voice) =>
-            isNaturalVoice(voice) || isWinNaturalVoice(voice) || isLinuxPiperVoice(voice)
+            isLinuxPiperVoice(voice)
           )
         );
         if (
@@ -680,7 +675,7 @@
         this.paused = true;
         this.toolbar.setPaused(true);
         this.toolbar.setStatus(
-          "Paused — Piper voice unavailable; Online fallback blocked"
+          "Paused — local Piper voice unavailable"
         );
         return;
       }
@@ -798,7 +793,7 @@
           this.clearPlaybackLivenessWatchdog?.();
           this.toolbar?.setPaused?.(true);
           this.toolbar?.setStatus?.(
-            "Extension reloaded — click the Edge Natural TTS browser button to reconnect"
+            "Extension reloaded — click the Firefox TTS toolbar button to reconnect"
           );
           console.warn(
             "Edge Natural TTS extension context was invalidated; waiting for browser-action recovery."
@@ -1199,7 +1194,8 @@
       const savedVoiceName = this.settings.voiceName;
       const savedVoiceSource = String(this.settings.voiceSource || "");
       const savedVoiceId = String(this.settings.voiceId || "");
-      const voices = this.speech.chooseVoices(documentLanguage, savedVoiceName);
+      const voices = this.speech.chooseVoices(documentLanguage, savedVoiceName)
+        .filter(isLinuxPiperVoice);
       this.voices = voices;
 
       const savedVoice = voices.find((voice) => {
@@ -1235,22 +1231,8 @@
           )
         );
 
-      this.selectedVoice = prefersPiper
-        ? (
-            savedVoice ||
-            defaultPiperVoice ||
-            voices.find(isLinuxPiperVoice) ||
-            null
-          )
-        : (
-            savedVoice ||
-            defaultPiperVoice ||
-            voices.find(isLinuxPiperVoice) ||
-            voices.find(isWinNaturalVoice) ||
-            voices.find(isNaturalVoice) ||
-            voices[0] ||
-            null
-          );
+      this.selectedVoice =
+        savedVoice || defaultPiperVoice || voices[0] || null;
 
       // A Piper preference is sticky. Passive catalog refresh may temporarily
       // leave no selected voice, but it must never silently substitute Online.
@@ -1297,7 +1279,7 @@
         this.paused = true;
         this.toolbar?.setPaused?.(true);
         this.toolbar?.setStatus?.(
-          "Paused — Piper voice unavailable; refusing Online fallback"
+          "Paused — local Piper voice unavailable"
         );
         this.releaseAudioOwnership();
         return;
