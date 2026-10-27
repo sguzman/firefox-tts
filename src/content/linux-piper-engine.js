@@ -1501,19 +1501,26 @@
       // read-only and only becomes true when the tab itself produces sound.
       // Therefore the normal Piper reader path must render audio in this tab.
       // The offscreen document remains a fallback for page-media failures.
-      const blob = new Blob(prepared.audio, { type: "audio/wav" });
-      this._revokeObjectUrl();
-      this.directObjectUrl = root.URL.createObjectURL(blob);
-
-      try {
-        this.directAudio?.pause?.();
-        this.directAudio?.removeAttribute?.("src");
-        this.directAudio?.load?.();
-      } catch (_error) {}
-
-      const audio =
+      // A fresh HTMLAudioElement for every sentence loses Firefox's
+      // per-element media activation and recreates the pitch/time-stretch
+      // processor at each boundary (most audible above ~1.8x). Keep one
+      // decoder/element for the whole reader when page playback is allowed.
+      // This only changes source between completed WAVs; _resetDirectState
+      // still destroys it synchronously on Stop/Quit/cancel.
+      const audio = this.directAudio ||
         root.document?.createElement?.("audio") ||
         new root.Audio();
+      audio.onended = null;
+      audio.onerror = null;
+      try {
+        audio.pause?.();
+        audio.removeAttribute?.("src");
+        audio.load?.();
+      } catch (_error) {}
+      this._revokeObjectUrl();
+      this.directObjectUrl = root.URL.createObjectURL(
+        new Blob(prepared.audio, { type: "audio/wav" })
+      );
 
       audio.preload = "auto";
       audio.preservesPitch = true;
