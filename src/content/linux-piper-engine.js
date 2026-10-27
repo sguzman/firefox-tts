@@ -317,6 +317,11 @@
       this.linuxPiperPlaybackIndex = -1;
       this.linuxPiperPausedInPlace = false;
       this.linuxPiperOffscreenPlayback = null;
+      // Firefox content scripts inherit the site's autoplay rules, whereas
+      // extension background pages may play media independently. Once page
+      // playback is denied, stay on the extension-owned audio path for this
+      // reader, including subsequent sentences and batches.
+      this.linuxPiperUseExtensionAudio = false;
       this.linuxPiperSentencePauseTimer = null;
       this.linuxPiperProgressTimer = null;
       this.linuxPiperCurrentPrepared = null;
@@ -1485,6 +1490,13 @@
       this.directBoundaryIndex = 0;
       this.currentChunkBoundaryIndex = -1;
 
+      if (this.linuxPiperUseExtensionAudio) {
+        void this._playLinuxPiperPreparedOffscreen(
+          generation, prepared, "continuing after page autoplay restriction"
+        );
+        return;
+      }
+
       // Edge's native speaker indicator is tied to Tab.audible, which is
       // read-only and only becomes true when the tab itself produces sound.
       // Therefore the normal Piper reader path must render audio in this tab.
@@ -1548,6 +1560,7 @@
         );
         const alreadyStarted = pagePlaybackState === "playing";
         pagePlaybackState = "fallback";
+        this.linuxPiperUseExtensionAudio = true;
         this._clearBoundaryClock();
         this._clearLinuxPiperProgressWatchdog();
         this.directActive = false;
@@ -1666,14 +1679,14 @@
             }
 
             if (error?.name === "NotAllowedError") {
-              // CPU synthesis can outlive the browser-action activation.
-              // Keep the prepared WAV and wait for an explicit toolbar Resume
-              // click instead of silently moving sound outside the tab.
-              pagePlaybackState = "blocked";
-              this._clearBoundaryClock();
-              this.directActive = false;
-              this.linuxPiperPausedInPlace = true;
-              this.onPlaybackBlocked?.(error);
+              // A toolbar action is an explicit request to speak, but the
+              // content script inherits the site's autoplay restrictions,
+              // and the asynchronous Piper inference outlives activation.
+              // Firefox's extension background page may autoplay sound; use
+              // that owned WAV path instead of leaving the reader paused.
+              // Never change the page's autoplay permissions/preferences.
+              this.onStatus?.("Using Firefox audio after page autoplay block...");
+              startOffscreenFallback("page autoplay blocked (NotAllowedError)");
               return;
             }
 
