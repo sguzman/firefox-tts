@@ -58,6 +58,12 @@ python3 tools/build_xpi.py --output /tmp/firefox-tts-unsigned.xpi
 
 See [PACKAGING.md](PACKAGING.md). Do **not** install the QA-only localhost-permission variant produced inside CI: it is not shipped and is used only in fresh, isolated Firefox test profiles.
 
+## Pronunciation and text-mapping options
+
+Open Firefox's `about:addons` page, select **Firefox TTS** under Extensions, then choose its **Preferences** / **Options** page. The editor is registered as `options_ui.page` and does not belong inside the in-page playback toolbar. No migration occurs unless you explicitly request it.
+
+The reader HUD follows an explicit website light/dark theme (including ChatGPT's theme class), or the browser/system preference when there is no site choice. Switching modes needs no reload and does not affect playback or page-editor focus.
+
 ## Optional pronunciation migration and rollback
 
 Nothing is migrated without explicit opt-in. First validate the original source and checksum with a dry run:

@@ -17,12 +17,37 @@
   width: 360px;
   box-sizing: border-box;
   padding: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  color-scheme: light dark;
+  /* Keep form controls and labels legible in both website themes. */
+  --tts-panel: light-dark(rgba(250, 250, 250, 0.98), rgba(24, 24, 27, 0.96));
+  --tts-ink: light-dark(#18181b, #fafafa);
+  --tts-border: light-dark(rgba(24, 24, 27, 0.20), rgba(255, 255, 255, 0.20));
+  --tts-muted: light-dark(#52525b, #d4d4d8);
+  --tts-hint: light-dark(#52525b, #a1a1aa);
+  --tts-placeholder: light-dark(#71717a, #a1a1aa);
+  --tts-button: light-dark(#f4f4f5, rgba(255, 255, 255, 0.09));
+  --tts-button-hover: light-dark(#e4e4e7, rgba(255, 255, 255, 0.15));
+  --tts-field: light-dark(#ffffff, #27272a);
+  --tts-checkbox: light-dark(#ffffff, #18181b);
+  --tts-checkbox-border: light-dark(#71717a, #a1a1aa);
+  --tts-checkbox-hover: light-dark(#52525b, #d4d4d8);
+  --tts-focus: light-dark(#2563eb, #93c5fd);
+  --tts-checkbox-focus: light-dark(#2563eb, #bfdbfe);
+  border: 1px solid var(--tts-border);
   border-radius: 12px;
-  background: rgba(24, 24, 27, 0.96);
-  color: #fafafa;
+  background: var(--tts-panel);
+  color: var(--tts-ink);
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.35);
   font: 13px/1.4 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+/* The page's explicit theme wins over the OS setting; CSS tracks
+   theme changes instantly without observers, reloads or focus changes. */
+:root:is(.dark, [data-theme="dark"], [data-color-scheme="dark"], [data-color-mode="dark"]) #edge-tts-toolbar[data-edge-tts-ui] {
+  color-scheme: dark;
+}
+:root:is(.light, [data-theme="light"], [data-color-scheme="light"], [data-color-mode="light"]) #edge-tts-toolbar[data-edge-tts-ui] {
+  color-scheme: light;
 }
 
 #edge-tts-toolbar[data-minimized="true"] {
@@ -63,7 +88,7 @@
 #edge-tts-toolbar .edge-tts-header [data-edge-tts-status] {
   min-width: 0;
   flex: 1;
-  color: #d4d4d8;
+  color: var(--tts-muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -97,15 +122,15 @@
 }
 
 #edge-tts-toolbar button {
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid var(--tts-border);
   border-radius: 7px;
   padding: 4px 8px;
-  background: rgba(255, 255, 255, 0.09);
+  background: var(--tts-button);
   cursor: pointer;
 }
 
 #edge-tts-toolbar button:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.15);
+  background: var(--tts-button-hover);
 }
 
 #edge-tts-toolbar button:disabled {
@@ -133,20 +158,20 @@
 #edge-tts-toolbar input[type="text"] {
   min-width: 0;
   flex: 1;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid var(--tts-border);
   border-radius: 7px;
   padding: 4px 6px;
-  background: #27272a;
-  color: #fafafa;
+  background: var(--tts-field);
+  color: var(--tts-ink);
 }
 
 #edge-tts-toolbar input[type="text"]::placeholder {
-  color: #a1a1aa;
+  color: var(--tts-placeholder);
 }
 
 #edge-tts-toolbar input[type="text"]:focus,
 #edge-tts-toolbar select:focus {
-  outline: 2px solid #93c5fd;
+  outline: 2px solid var(--tts-focus);
   outline-offset: 1px;
 }
 
@@ -187,7 +212,7 @@
   height: 26px;
   flex: 0 0 auto;
   padding: 1px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid var(--tts-border);
   border-radius: 6px;
   background: transparent;
   cursor: pointer;
@@ -215,9 +240,9 @@
   width: 24px;
   height: 24px;
   flex: 0 0 24px;
-  border: 2px solid #a1a1aa;
+  border: 2px solid var(--tts-checkbox-border);
   border-radius: 6px;
-  background: #18181b;
+  background: var(--tts-checkbox);
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.2);
 }
 
@@ -239,15 +264,15 @@
 }
 
 #edge-tts-toolbar .edge-tts-checkbox-label input[type="checkbox"]:focus-visible + .edge-tts-checkbox-control {
-  outline: 2px solid #bfdbfe;
+  outline: 2px solid var(--tts-checkbox-focus);
   outline-offset: 2px;
 }
 
 #edge-tts-toolbar .edge-tts-checkbox-label:hover .edge-tts-checkbox-control {
-  border-color: #d4d4d8;
+  border-color: var(--tts-checkbox-hover);
 }
 
 #edge-tts-toolbar .edge-tts-hint {
-  color: #a1a1aa;
+  color: var(--tts-hint);
   font-size: 12px;
 }

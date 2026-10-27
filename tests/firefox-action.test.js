@@ -54,6 +54,10 @@ test("Firefox MV3 manifest: fixed ID, no idle injection, no Chromium offscreen",
   assert.deepEqual(manifest.background.scripts, ["src/background/audio.js", "src/background/native.js", "src/background/action.js"]);
   assert.equal(manifest.content_scripts, undefined);
   assert.equal(manifest.host_permissions, undefined);
+  assert.equal(manifest.options_ui.page, "src/options/pronunciation.html");
+  assert.equal(manifest.options_ui.open_in_tab, true);
+  const toolbarSource = fs.readFileSync(path.join(root, "src/content/toolbar.js"), "utf8");
+  assert.doesNotMatch(toolbarSource, /data-edge-tts-action=["']pronunciation-options/);
   for (const file of manifest.background.scripts) {
     assert.ok(fs.statSync(path.join(root, file)).isFile());
   }

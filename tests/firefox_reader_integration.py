@@ -353,16 +353,42 @@ def main() -> None:
                 print("PASS: Firefox volume, batching and sentence-pause controls respond")
                 print("PASS: Real Firefox synthetic voice catalog and speed controls")
                 print("PASS: Actual Firefox installed modules, built reader and mounted toolbar")
+                theme = base.execute(host, session,
+                    """const root=document.documentElement;
+                       const toolbar=document.querySelector('#edge-tts-toolbar');
+                       const select=toolbar.querySelector('[data-edge-tts-voice]');
+                       const sample=()=>({
+                         mode:getComputedStyle(toolbar).colorScheme,
+                         panel:getComputedStyle(toolbar).backgroundColor,
+                         foreground:getComputedStyle(toolbar).color,
+                         field:getComputedStyle(select).backgroundColor
+                       });
+                       root.classList.remove('dark','light');
+                       root.classList.add('light');
+                       const light=sample();
+                       root.classList.replace('light','dark');
+                       const dark=sample();
+                       root.classList.replace('dark','light');
+                       return {light,dark,
+                         noPronunciationButton:!toolbar.querySelector('[data-edge-tts-action="pronunciation-options"]')};""")
+                assert theme["noPronunciationButton"], "Pronunciation settings belong in extension options"
+                assert theme["light"]["mode"] == "light" and theme["dark"]["mode"] == "dark", theme
+                for key in ("panel", "foreground", "field"):
+                    assert theme["light"][key] != theme["dark"][key], (key, theme)
+                print("PASS: Firefox HUD follows site light/dark and omits options shortcut")
 
+                # The options page is registered by manifest.options_ui; navigate
+                # there separately rather than opening it from reader controls.
+                options_url = base.execute(host, session,
+                    "return document.documentElement.dataset.firefoxTtsQaOptions")
+                assert options_url.startswith("moz-extension://"), options_url
                 original_window = base.webdriver(host, session, "GET", "window")
-                original_handles = set(base.webdriver(host, session, "GET", "window/handles"))
-                base.execute(host, session,
-                    "document.querySelector('#edge-tts-toolbar [data-edge-tts-action=pronunciation-options]').click()")
-                options_handles = base.eventually(
-                    lambda: list(set(base.webdriver(host, session, "GET", "window/handles"))
-                                 - original_handles),
-                    timeout=12, explanation="Firefox did not open the pronunciation options tab")
-                options_window = options_handles[0]
+                opened = base.webdriver(host, session, "POST", "window/new", {"type": "tab"})
+                options_window = opened["handle"]
+                base.webdriver(host, session, "POST", "url", {"url": options_url})
+                base.eventually(lambda: base.execute(host, session,
+                    "return Boolean(document.querySelector('#preview-source'))"),
+                    timeout=12, explanation="Firefox options page unavailable outside HUD")
                 base.webdriver(host, session, "POST", "window", {"handle": original_window})
                 base.execute(host, session,
                     "document.querySelector('#editor').focus(); return document.activeElement.id")

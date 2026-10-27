@@ -151,8 +151,7 @@
         onAutoScroll: (enabled) => this.changeAutoScroll(enabled),
         onClickToSeek: (enabled) => this.changeClickToSeek(enabled),
         onMinimized: (minimized) => this.changeMinimized(minimized),
-        onPosition: (position) => this.changeToolbarPosition(position),
-        onPronunciationOptions: () => this.openPronunciationOptions()
+        onPosition: (position) => this.changeToolbarPosition(position)
       });
 
       this.boundClick = (event) => this.handlePageClick(event);
@@ -1732,16 +1731,6 @@
     async changeToolbarPosition(position) {
       this.settings.toolbarPosition = position;
       await this.saveSettings();
-    }
-
-    openPronunciationOptions() {
-      try {
-        void chrome.runtime.sendMessage({
-          type: "EDGE_TTS_OPEN_PRONUNCIATION_OPTIONS"
-        });
-      } catch (error) {
-        console.warn("Could not open pronunciation options.", error);
-      }
     }
 
     async loadSettings() {
