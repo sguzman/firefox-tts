@@ -168,7 +168,12 @@ def qa_package(release: Path, destination: Path) -> None:
           void browser.scripting.executeScript({
             target: { tabId },
             func: result => {
-              document.documentElement.dataset.firefoxTtsQaPlayback = JSON.stringify(result);
+              const root = document.documentElement;
+              root.dataset.firefoxTtsQaPlayback = JSON.stringify(result);
+              if (result.accepted) {
+                root.dataset.firefoxTtsQaPlaybackCount =
+                  String((Number(root.dataset.firefoxTtsQaPlaybackCount) || 0) + 1);
+              }
             },
             args: [{ accepted: response?.accepted === true, error: response?.error || "" }]
           }).catch(() => {});
@@ -250,9 +255,11 @@ def qa_package(release: Path, destination: Path) -> None:
 
 def install_fake_native_host(root: Path) -> None:
     """Register a fake Piper on isolated HOME; never run a real model."""
+    short_audio = os.environ.get("FIREFOX_TTS_QA_AUTOPLAY") == "1"
     (root / "piper.py").write_text(
         FAKE_PIPER.replace('count = 25 if "cancel" in text else 4',
-                           'count = 25 if "cancel" in text else 25'),
+                           'count = 25 if "cancel" in text else ' +
+                           ('8' if short_audio else '25')),
         encoding="utf-8"
     )
     voices = root / "voices"
@@ -290,6 +297,7 @@ def main() -> None:
         raise RuntimeError("Runner must already provide Firefox and Geckodriver")
     with tempfile.TemporaryDirectory(prefix="firefox-tts-content-qa-") as tmp:
         root = Path(tmp)
+        autoplay_qa = os.environ.get("FIREFOX_TTS_QA_AUTOPLAY") == "1"
         os.environ.update({
             "HOME": str(root), "XDG_DATA_HOME": str(root / "share"),
             "XDG_CONFIG_HOME": str(root / "config"), "XDG_CACHE_HOME": str(root / "cache")
@@ -315,7 +323,9 @@ def main() -> None:
                 caps = {"capabilities": {"alwaysMatch": {
                     "browserName": "firefox",
                     "moz:firefoxOptions": {"args": ["-headless"], "prefs": {
-                        "media.autoplay.default": 0,
+                        # Autoplay QA uses Firefox's normal block-audible-media
+                        # policy; no site permission or setting is altered.
+                        "media.autoplay.default": 1 if autoplay_qa else 0,
                         "media.cubeb.force_mock_context": True
                     }}
                 }}}
@@ -347,6 +357,27 @@ def main() -> None:
                 assert "Private composer text must not be read." not in all_prose, writing
                 assert "Hidden status announcement." not in all_prose, writing
                 print("PASS: Real Firefox extracts ChatGPT assistant Writing Blocks but excludes composer/status")
+                if autoplay_qa:
+                    base.eventually(lambda: base.execute(host, session,
+                        "return document.documentElement.dataset.firefoxTtsQaMediaAttempted === 'true'"),
+                        timeout=18, explanation="Reader did not attempt initial tab-owned WAV")
+                    fallback_json = base.eventually(lambda: base.execute(host, session,
+                        "return document.documentElement.dataset.firefoxTtsQaPlayback"),
+                        timeout=18, explanation="Autoplay-blocked tab did not try Firefox-owned audio")
+                    fallback = json.loads(fallback_json)
+                    assert fallback.get("accepted") is True, fallback
+                    base.eventually(lambda: base.execute(host, session,
+                        """const r=globalThis.__EDGE_TTS_READER__?.app;
+                           return r && r.enabled && !r.paused && !r.stopped &&
+                             r.speech?.linuxPiperUseExtensionAudio === true;"""),
+                        timeout=12, explanation="Autoplay fallback left reader paused")
+                    base.eventually(lambda: base.execute(host, session,
+                        "return Number(document.documentElement.dataset.firefoxTtsQaPlaybackCount || 0) >= 2"),
+                        timeout=22, explanation="Autoplay fallback stopped at first sentence")
+                    assert base.execute(host, session,
+                        """return globalThis.__EDGE_TTS_READER__?.app?.paused === false""")
+                    print("PASS: Normal Firefox autoplay policy starts Piper automatically and plays consecutive sentences")
+                    return
                 base.eventually(lambda: base.execute(host, session,
                     "return document.documentElement.dataset.firefoxTtsQaMediaAttempted === 'true'"),
                     timeout=16, explanation="Real Firefox reader never attempted playback of synthesized WAV")
