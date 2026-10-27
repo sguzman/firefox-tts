@@ -81,6 +81,16 @@ python3 native/linux-piper/migrate-pronunciation.py --apply --restore 'before-ed
 
 The filenames above are examples; substitute the actual basename. Restoration preserves another backup before replacement. All operations leave the original Edge configuration unchanged. See [the native host guide](../native/linux-piper/README.md).
 
+## Optional CPU speech preflight when the candidate is ready
+
+To verify the existing installed Amy Low ONNX model without opening either browser or changing the Edge environment:
+
+~~~bash
+./native/linux-piper/self-test-cpu.sh en_US-amy-low
+~~~
+
+Other installed Piper voice IDs can be given as the only argument. This explicit check uses the already-installed CPU interpreter, rejects GPU runtimes, validates model metadata, reads the model, synthesizes a fixed harmless test phrase and reports its sample rate/PCM peak. It performs no model, profile, pronunciation or native manifest writes and no download. CI tests this command against disposable **fake** Piper assets; successful CI does not substitute for running it with the owner's actual model.
+
 ## Operation and recovery
 
 When ready for real acceptance, click the Firefox extension action to inject the toolbar into the current tab. Only local Piper voices are offered (Amy Low by default if installed, with Ryan or HFC as optional alternatives). Stop cancels native synthesis and playback; Quit removes the toolbar. Editable controls should never lose focus during normal read-aloud.
