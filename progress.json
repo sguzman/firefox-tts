@@ -8,10 +8,10 @@
     "note": "Repository initially contained only LICENSE and .gitignore"
   },
   "asOf": "2026-10-27",
-  "completedWeight": 8,
+  "completedWeight": 14,
   "totalWeight": 100,
-  "percent": 8,
-  "roundDelta": 8,
+  "percent": 14,
+  "roundDelta": 6,
   "source": {
     "repo": "sguzman/edge-tts",
     "branch": "development/linux-piper-v1",
@@ -85,8 +85,12 @@
       "weight": 6,
       "title": "Import curated reader and pronunciation source",
       "acceptance": "Copied files trace to pinned Edge commit; exclude unused Windows assets and generated binaries",
-      "status": "todo",
-      "evidence": []
+      "status": "done",
+      "evidence": [
+        "Commit b368f56089649c8414a9fa18a337b7fc3f61c84d imports exactly 21 vetted files",
+        "All 21 generated blob SHAs matched pinned source blob SHAs",
+        "Recursive tree audit found no win-natural, direct-audio or offscreen source files"
+      ]
     },
     {
       "id": "S02",
@@ -318,5 +322,15 @@
       "status": "todo",
       "evidence": []
     }
-  ]
+  ],
+  "previousPercent": 8,
+  "round": "source-import-1",
+  "stageCompleted": {
+    "Governance": 8,
+    "Core port": 6,
+    "Firefox integration": 0,
+    "User experience": 0,
+    "Verification": 0,
+    "Release": 0
+  }
 }

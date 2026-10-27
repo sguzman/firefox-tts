@@ -17,7 +17,7 @@ Target: a Firefox Developer Edition-first, Linux-only, offline Piper read-aloud 
 
 Progress = sum of weights of work items with **verified acceptance evidence** / 100. Weights are frozen, include tests and user acceptance, and are not estimates of elapsed time. `roundDelta` = new percent minus previous reported percent. Unknown, partial, untested or blocked work remains **0 credit** for its item, even when code is checked in. Fixes within existing tasks do not introduce arbitrary new work or inflate progress. Any necessary scope change needs a recorded rationale and explicit weight migration that preserves the already-reported baseline. Ledger: [`progress.json`](../progress.json).
 
-Initial baseline: 0% (license + ignore only). This governance round: **8% (+8 points)**. No functionality has been claimed complete.
+Initial baseline: 0% (license + ignore only). Current source-import round: **14% (+6 points since the previous 8% report)**. Source import alone is not a runnable Firefox extension; no browser functionality has been claimed complete.
 
 | Stage | Fixed weight |
 | --- | ---: |
@@ -40,7 +40,7 @@ Initial baseline: 0% (license + ignore only). This governance round: **8% (+8 po
 
 ### Core port — 21%
 
-- [ ] **📥 S01** · **6%** — Import curated reader and pronunciation source. Acceptance: Copied files trace to pinned Edge commit; exclude unused Windows assets and generated binaries.
+- [x] **📥 S01** · **6%** — Import curated reader and pronunciation source. Acceptance: Copied files trace to pinned Edge commit; exclude unused Windows assets and generated binaries.
 - [ ] **📖 S02** · **5%** — Preserve DOM text model, highlighter and selection mappings. Acceptance: Unit tests cover multi-block reading, editable exclusion, CSS Highlight mapping, seek.
 - [ ] **🧹 S03** · **3%** — Remove Edge online and Windows-only playback dependencies. Acceptance: No active references to Direct Read Aloud, chrome.tts, WIN-NATURAL or Windows host.
 - [ ] **🧩 S04** · **4%** — Port action-triggered on-demand script and CSS injection. Acceptance: One action click installs a singleton reader, retry and stop are deterministic.
