@@ -79,3 +79,18 @@ test("native request timeout cancels the inflight request", async () => {
   await assert.rejects(pending, /request timed out/);
   assert.ok(h.messages.some(m => m.type === "cancel" && m.requestId === request.requestId));
 });
+
+test("release during delayed native handshake cannot resurrect synthesis", async () => {
+  const h = setup({ replyToHello: false });
+  assert.equal((await h.message({ type:"EDGE_TTS_AUDIO_CLAIM" }, 17)).granted, true);
+  const pending = h.message({ type:"EDGE_TTS_LINUX_PIPER_SYNTHESIZE",
+    requestId:"after-stop", voiceId:"en_US-amy-low", text:"Never play after stop" }, 17);
+  await Promise.resolve();
+  assert.equal(h.messages[0].type, "hello");
+  assert.equal((await h.message({ type:"EDGE_TTS_AUDIO_RELEASE" }, 17)).released, true);
+  h.receive({ type:"hello", protocol:1, platform:"linux", backend:"piper", cpuOnly:true });
+  const result = await pending;
+  assert.equal(result.accepted, false);
+  assert.match(result.error, /ownership expired/);
+  assert.equal(h.messages.some(m => m.type === "synthesize"), false);
+});
