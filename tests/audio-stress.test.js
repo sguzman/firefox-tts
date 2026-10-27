@@ -147,3 +147,44 @@ test("background WAV player survives autoplay denial and explicit resume", async
   assert.equal(h.urls.size, 0);
   assert.equal(h.ticks.size, 0);
 });
+
+test("high-speed extension audio ramps output after decoder starts and clears on Stop", async () => {
+  const h = harness();
+  const high = msg("high-rate", h.audioChunks);
+  high.playbackRate = 1.9;
+  high.volume = .8;
+  assert.equal((await h.player.handle(high, 12)).accepted, true);
+  assert.equal(h.audio.volume, 0, "start high-speed output muted until decoder starts");
+  assert.equal(h.ticks.size, 2, "one word clock and one short fade timer");
+  h.tickAll();
+  assert.equal(h.audio.volume, .2);
+  h.tickAll();
+  h.tickAll();
+  h.tickAll();
+  assert.equal(h.audio.volume, .8);
+  assert.equal(h.ticks.size, 1, "fade timer expires after 32 ms");
+
+  const second = msg("high-rate-2", h.audioChunks);
+  second.playbackRate = 1.9;
+  second.volume = .8;
+  await h.player.handle(second, 12);
+  assert.equal(h.ticks.size, 2);
+  assert.equal(h.audio.volume, 0);
+  assert.equal(h.player.stopTab(12), true);
+  assert.equal(h.audio.paused, true);
+  assert.equal(h.ticks.size, 0, "Quit clears both playback and fade timers");
+  assert.equal(h.urls.size, 0);
+
+  // Pause during the first 32ms must not cause Resume to stay silent.
+  await h.player.handle(high, 12);
+  await h.player.handle({ type:"EDGE_TTS_PIPER_OFFSCREEN_PAUSE",
+    playbackId:"high-rate" }, 12);
+  assert.equal(h.ticks.size, 0);
+  const resumed = await h.player.handle({ type:"EDGE_TTS_PIPER_OFFSCREEN_RESUME",
+    playbackId:"high-rate" }, 12);
+  assert.equal(resumed.accepted, true);
+  assert.equal(h.audio.volume, .8);
+  h.player.stopAll();
+  assert.equal(h.ticks.size, 0);
+});
+
