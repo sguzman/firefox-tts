@@ -8,10 +8,10 @@
     "note": "Repository initially contained only LICENSE and .gitignore"
   },
   "asOf": "2026-10-27",
-  "completedWeight": 51,
+  "completedWeight": 54,
   "totalWeight": 100,
-  "percent": 51,
-  "roundDelta": 5,
+  "percent": 54,
+  "roundDelta": 3,
   "source": {
     "repo": "sguzman/edge-tts",
     "branch": "development/linux-piper-v1",
@@ -223,8 +223,12 @@
       "weight": 3,
       "title": "Port Piper catalog, default and preferences",
       "acceptance": "Voice discovery works; Amy Low default with optional Ryan and other installed voices",
-      "status": "todo",
-      "evidence": []
+      "status": "done",
+      "evidence": [
+        "tests/test_host_isolation.py enumerates Amy Low, Ryan High and HFC Female ONNX metadata without loading model or modifying voice files",
+        "tests/piper-only.test.js verifies reader selects Amy Low by default and persisted Ryan override, rejecting remote voices",
+        "GitHub Actions run 40545569795 passed synthetic voice and native metadata tests; real Firefox Piper output still requires F04/R03"
+      ]
     },
     {
       "id": "U02",
@@ -362,20 +366,19 @@
       "evidence": []
     }
   ],
-  "previousPercent": 46,
-  "round": "real-browser-manifest-1",
+  "previousPercent": 51,
+  "round": "voice-catalog-preferences-1",
   "stageCompleted": {
     "Governance": 8,
     "Core port": 21,
     "Firefox integration": 11,
-    "User experience": 4,
+    "User experience": 7,
     "Verification": 6,
     "Release": 1
   },
   "lastGreenCI": {
-    "runId": 40544414272,
-    "job": "no-dependency-checks",
-    "note": "Static, mock and disposable native tests passed; separate real-Firefox shortcut smoke job failed and remains uncredited"
+    "runId": 40545569795,
+    "note": "Both no-dependency and real-Firefox installation/idle jobs green. Audio initiation not attempted."
   },
   "blockers": [
     {

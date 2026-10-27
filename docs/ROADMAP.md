@@ -17,7 +17,7 @@ Target: a Firefox Developer Edition-first, Linux-only, offline Piper read-aloud 
 
 Progress = sum of weights of work items with **verified acceptance evidence** / 100. Weights are frozen, include tests and user acceptance, and are not estimates of elapsed time. `roundDelta` = new percent minus previous reported percent. Unknown, partial, untested or blocked work remains **0 credit** for its item, even when code is checked in. Fixes within existing tasks do not introduce arbitrary new work or inflate progress. Any necessary scope change needs a recorded rationale and explicit weight migration that preserves the already-reported baseline. Ledger: [`progress.json`](../progress.json).
 
-Initial baseline: 0% (license + ignore only). Current manifest acceptance round: **51% (+5 points since the previous 46% report)**. A disposable real Firefox successfully installs the MV3 manifest and remains idle until interaction; toolbar activation and actual Piper synthesis are still unverified.
+Initial baseline: 0% (license + ignore only). Current voice-catalog round: **54% (+3 points since the previous 51% report)**. CPU-only model discovery and Amy/Ryan preferences pass synthetic tests, and disposable Firefox installation/idle CI is green; real speech and toolbar activation remain unverified.
 
 | Stage | Fixed weight |
 | --- | ---: |
@@ -57,7 +57,7 @@ Initial baseline: 0% (license + ignore only). Current manifest acceptance round:
 
 ### User experience — 18%
 
-- [ ] **🎙️ U01** · **3%** — Port Piper catalog, default and preferences. Acceptance: Voice discovery works; Amy Low default with optional Ryan and other installed voices.
+- [x] **🎙️ U01** · **3%** — Port Piper catalog, default and preferences. Acceptance: Voice discovery works; Amy Low default with optional Ryan and other installed voices.
 - [ ] **🗣️ U02** · **4%** — Port pronunciation projection and live testing. Acceptance: Rules, previews, import/export, source mapping and sentence boundaries tested.
 - [x] **💾 U03** · **4%** — Preserve user pronunciation rules and backups. Acceptance: Explicit migration/read-only source handling; restore, revision history and failure cases tested.
 - [ ] **🎚️ U04** · **3%** — Port toolbar, batching and speech controls. Acceptance: Volume, pitch-preserving speed, sentence pause, seek, highlighting and controls verified.
