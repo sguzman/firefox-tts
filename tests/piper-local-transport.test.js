@@ -76,5 +76,5 @@ test("Piper failure resets local transport and emits original error, never a cle
   assert.doesNotThrow(() => engine._failLinuxPiper("native model missing"));
   assert.equal(errors.length, 1);
   assert.match(errors[0], /native model missing/);
-  assert.deepEqual(engine.currentChunks, []);
+  assert.equal(engine.currentChunks.length, 0);
 });
