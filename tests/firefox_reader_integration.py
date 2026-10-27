@@ -43,10 +43,22 @@ def qa_package(release: Path, destination: Path) -> None:
           await browser.scripting.executeScript({
             target: { tabId },
             func: () => {
+              const watched = new Set();
               const original = HTMLMediaElement.prototype.play;
+              const originalPause = HTMLMediaElement.prototype.pause;
+              const reportActive = () => {
+                document.documentElement.dataset.firefoxTtsQaMediaActive =
+                  String([...watched].filter(audio => !audio.paused).length);
+              };
+              HTMLMediaElement.prototype.pause = function(...args) {
+                const result = originalPause.apply(this, args);
+                reportActive();
+                return result;
+              };
               HTMLMediaElement.prototype.play = function(...args) {
                 if (this.tagName === "AUDIO") {
                   const root = document.documentElement;
+                  watched.add(this);
                   root.dataset.firefoxTtsQaMediaAttempted = "true";
                   this.addEventListener("playing", () => {
                     root.dataset.firefoxTtsQaMediaPlaying = "true";
@@ -64,7 +76,9 @@ def qa_package(release: Path, destination: Path) -> None:
                     root.dataset.firefoxTtsQaMediaEnded = "true";
                   }, { once: true });
                 }
-                return original.apply(this, args);
+                const result = original.apply(this, args);
+                Promise.resolve(result).then(reportActive, reportActive);
+                return result;
               };
             }
           });
@@ -95,6 +109,11 @@ def qa_package(release: Path, destination: Path) -> None:
             document.addEventListener("firefox-tts-qa-open-options", () => {
               void browser.runtime.sendMessage({
                 type: "FIREFOX_TTS_QA_OPEN_OPTIONS"
+              }).catch(() => {});
+            });
+            document.addEventListener("firefox-tts-qa-reopen", () => {
+              void browser.runtime.sendMessage({
+                type: "FIREFOX_TTS_QA_REOPEN"
               }).catch(() => {});
             });
           }
@@ -158,9 +177,15 @@ def qa_package(release: Path, destination: Path) -> None:
       };
     }
     """
-    bridge += """\nbrowser.runtime.onMessage.addListener((message) => {
+    bridge += """\nbrowser.runtime.onMessage.addListener((message, sender) => {
       if (message?.type === "FIREFOX_TTS_QA_OPEN_OPTIONS") {
         return browser.runtime.openOptionsPage().then(() => ({ accepted: true }));
+      }
+      if (message?.type === "FIREFOX_TTS_QA_REOPEN") {
+        // Only the original test fixture's own content-script can send this.
+        const tabId = sender?.tab?.id;
+        if (!Number.isInteger(tabId)) return Promise.resolve({ accepted: false });
+        return browser.tabs.sendMessage(tabId, { type: "EDGE_TTS_TOGGLE_V2" });
       }
       if (message?.type !== "FIREFOX_TTS_QA_OPTIONS_REPORT") return false;
       return browser.tabs.query({ url: "http://127.0.0.1/*" }).then(async tabs => {
@@ -225,7 +250,11 @@ def qa_package(release: Path, destination: Path) -> None:
 
 def install_fake_native_host(root: Path) -> None:
     """Register a fake Piper on isolated HOME; never run a real model."""
-    (root / "piper.py").write_text(FAKE_PIPER, encoding="utf-8")
+    (root / "piper.py").write_text(
+        FAKE_PIPER.replace('count = 25 if "cancel" in text else 4',
+                           'count = 25 if "cancel" in text else 25'),
+        encoding="utf-8"
+    )
     voices = root / "voices"
     voices.mkdir()
     model = voices / "en_US-amy-low.onnx"
@@ -416,12 +445,34 @@ def main() -> None:
                 base.execute(host, session,
                     "document.querySelector('#edge-tts-toolbar [data-edge-tts-action=stop]').click()")
                 assert base.execute(host, session, "return document.activeElement.id") == "editor"
+                base.eventually(lambda: base.execute(host, session,
+                    "return Number(document.documentElement.dataset.firefoxTtsQaMediaActive || 0) === 0"),
+                    timeout=8, explanation="Stop left actual Piper audio active")
+                base.execute(host, session,
+                    "document.querySelector('#edge-tts-toolbar [data-edge-tts-action=play]').click()")
+                base.eventually(lambda: base.execute(host, session,
+                    "return Number(document.documentElement.dataset.firefoxTtsQaMediaActive || 0) === 1"),
+                    timeout=14, explanation="Test did not observe one active WAV after restart")
                 base.execute(host, session,
                     "document.querySelector('#edge-tts-toolbar [data-edge-tts-action=quit]').click()")
                 base.eventually(lambda: base.execute(host, session,
-                    "return document.querySelector('#edge-tts-toolbar') === null"),
-                    timeout=8, explanation="Quit did not remove toolbar in real Firefox")
-                print("PASS: Real Firefox synthetic reader stop/quit did not steal editor focus")
+                    "return document.querySelector('#edge-tts-toolbar') === null && Number(document.documentElement.dataset.firefoxTtsQaMediaActive || 0) === 0"),
+                    timeout=8, explanation="Quit hid HUD but left tab-owned WAV running")
+                assert base.execute(host, session, "return document.activeElement.id") == "editor"
+                base.execute(host, session,
+                    'document.dispatchEvent(new Event("firefox-tts-qa-reopen"))')
+                base.eventually(lambda: base.execute(host, session,
+                    "return Boolean(document.querySelector('#edge-tts-toolbar'))"),
+                    timeout=10, explanation="Quit prevented future toolbar action")
+                base.eventually(lambda: base.execute(host, session,
+                    "return Number(document.documentElement.dataset.firefoxTtsQaMediaActive || 0) === 1"),
+                    timeout=18, explanation="New reader did not start exactly one WAV")
+                base.execute(host, session,
+                    "document.querySelector('#edge-tts-toolbar [data-edge-tts-action=quit]').click()")
+                base.eventually(lambda: base.execute(host, session,
+                    "return Number(document.documentElement.dataset.firefoxTtsQaMediaActive || 0) === 0"),
+                    timeout=8, explanation="Second Quit leaked overlapping WAV")
+                print("PASS: Real Firefox Stop/Quit/reopen leaves zero or one active WAV and preserves editor focus")
                 report_json = base.eventually(lambda: base.execute(host, session,
                     "return document.documentElement.dataset.firefoxTtsQaReport"),
                     timeout=18, explanation="Firefox QA-only options probe did not return a result")
