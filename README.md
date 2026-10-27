@@ -6,7 +6,7 @@ The project is independent of the Edge extension and does **not** depend on Edge
 
 ## Status — October 27, 2026
 
-**46% (+5 points from the previous 41% round).** The pinned source import, Gecko background code, disposable native host integration tests, and governance tasks, plus the one-time [firefox-scripts index cross-link](https://github.com/sguzman/firefox-scripts/commit/e11fac830231b6fcdfb9406ebca1cb468cfbbb5e) have been completed. **A Firefox-specific background and native bridge are implemented and pass synthetic checks, but have not been tested in a real Firefox runtime.** No claim of real Piper synthesis or audible playback.
+**51% (+5 points from the previous 46% round).** The pinned source import, Gecko background code, disposable native host integration tests, and governance tasks, plus the one-time [firefox-scripts index cross-link](https://github.com/sguzman/firefox-scripts/commit/e11fac830231b6fcdfb9406ebca1cb468cfbbb5e) have been completed. **A Firefox-specific background and native bridge are implemented and pass synthetic checks, but have not been tested in a real Firefox runtime.** No claim of real Piper synthesis or audible playback.
 
 - [📍 Detailed weighted roadmap](docs/ROADMAP.md)
 - [📊 Machine-readable progress ledger](progress.json)

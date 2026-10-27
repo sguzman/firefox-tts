@@ -8,9 +8,9 @@
     "note": "Repository initially contained only LICENSE and .gitignore"
   },
   "asOf": "2026-10-27",
-  "completedWeight": 46,
+  "completedWeight": 51,
   "totalWeight": 100,
-  "percent": 46,
+  "percent": 51,
   "roundDelta": 5,
   "source": {
     "repo": "sguzman/edge-tts",
@@ -155,8 +155,12 @@
       "weight": 5,
       "title": "Create Firefox MV3 manifest and fixed Gecko ID",
       "acceptance": "Manifest loads without schema errors in isolated Firefox and declares only justified permissions",
-      "status": "todo",
-      "evidence": []
+      "status": "done",
+      "evidence": [
+        "manifest.json declares MV3 Firefox background scripts, fixed Gecko ID, activeTab+scripting+storage+nativeMessaging and no blanket host permissions",
+        "Unsigned XPI successfully installed with expected addon ID in disposable real Firefox (Geckodriver) in runs 40544262235 and 40544769463",
+        "Firefox browser was verified idle with no injected toolbar; subsequent shortcut activation remains open under T04/F02"
+      ]
     },
     {
       "id": "F02",
@@ -358,12 +362,12 @@
       "evidence": []
     }
   ],
-  "previousPercent": 41,
-  "round": "data-rollback-package-1",
+  "previousPercent": 46,
+  "round": "real-browser-manifest-1",
   "stageCompleted": {
     "Governance": 8,
     "Core port": 21,
-    "Firefox integration": 6,
+    "Firefox integration": 11,
     "User experience": 4,
     "Verification": 6,
     "Release": 1
@@ -378,5 +382,16 @@
       "id": "T04",
       "detail": "Firefox headless action shortcut does not fire. Unsigned temporary MV3 installs and idle stays untouched; privileged toolbar activation investigation ongoing."
     }
-  ]
+  ],
+  "lastBrowserEvidence": {
+    "runId": 40544769463,
+    "passed": [
+      "Firefox temporary MV3 install",
+      "No automatic content injection before toolbar action"
+    ],
+    "failed": [
+      "Keyboard shortcut failed to expose reader toolbar"
+    ],
+    "note": "Isolated runner profile, not user's real Firefox"
+  }
 }

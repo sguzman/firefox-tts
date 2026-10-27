@@ -17,7 +17,7 @@ Target: a Firefox Developer Edition-first, Linux-only, offline Piper read-aloud 
 
 Progress = sum of weights of work items with **verified acceptance evidence** / 100. Weights are frozen, include tests and user acceptance, and are not estimates of elapsed time. `roundDelta` = new percent minus previous reported percent. Unknown, partial, untested or blocked work remains **0 credit** for its item, even when code is checked in. Fixes within existing tasks do not introduce arbitrary new work or inflate progress. Any necessary scope change needs a recorded rationale and explicit weight migration that preserves the already-reported baseline. Ledger: [`progress.json`](../progress.json).
 
-Initial baseline: 0% (license + ignore only). Current migration/package round: **46% (+5 points since the previous 41% report)**. Pronunciation backup/restore and reproducible unsigned XPI tests pass; headless Firefox installation succeeds but toolbar activation is still under investigation.
+Initial baseline: 0% (license + ignore only). Current manifest acceptance round: **51% (+5 points since the previous 46% report)**. A disposable real Firefox successfully installs the MV3 manifest and remains idle until interaction; toolbar activation and actual Piper synthesis are still unverified.
 
 | Stage | Fixed weight |
 | --- | ---: |
@@ -48,7 +48,7 @@ Initial baseline: 0% (license + ignore only). Current migration/package round: *
 
 ### Firefox integration — 31%
 
-- [ ] **🦊 F01** · **5%** — Create Firefox MV3 manifest and fixed Gecko ID. Acceptance: Manifest loads without schema errors in isolated Firefox and declares only justified permissions.
+- [x] **🦊 F01** · **5%** — Create Firefox MV3 manifest and fixed Gecko ID. Acceptance: Manifest loads without schema errors in isolated Firefox and declares only justified permissions.
 - [ ] **🧠 F02** · **6%** — Move orchestration to Firefox background event page. Acceptance: Messaging, active tab, native port, tab-close cleanup and suspension/restart tested.
 - [x] **🔌 F03** · **6%** — Implement dedicated Firefox Native Messaging manifest and installer. Acceptance: Gecko allowed_extensions, correct per-user path and isolated installation; never modify Edge host.
 - [ ] **🐍 F04** · **5%** — Reuse Piper safely as CPU-only native backend. Acceptance: Native hello, enumerate, synthesize and cancel pass; existing voices and files untouched.
