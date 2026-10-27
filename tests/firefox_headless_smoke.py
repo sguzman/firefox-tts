@@ -73,9 +73,13 @@ def execute(base: str, session: str, script: str):
 def eventually(condition, *, timeout: float = 12, explanation: str):
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
-        value = condition()
-        if value:
-            return value
+        try:
+            value = condition()
+            if value:
+                return value
+        except (urllib.error.URLError, ConnectionError):
+            # Geckodriver may not yet have bound its loopback socket.
+            pass
         time.sleep(0.25)
     raise AssertionError(explanation)
 
