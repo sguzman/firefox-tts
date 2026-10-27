@@ -17,7 +17,7 @@ Target: a Firefox Developer Edition-first, Linux-only, offline Piper read-aloud 
 
 Progress = sum of weights of work items with **verified acceptance evidence** / 100. Weights are frozen, include tests and user acceptance, and are not estimates of elapsed time. `roundDelta` = new percent minus previous reported percent. Unknown, partial, untested or blocked work remains **0 credit** for its item, even when code is checked in. Fixes within existing tasks do not introduce arbitrary new work or inflate progress. Any necessary scope change needs a recorded rationale and explicit weight migration that preserves the already-reported baseline. Ledger: [`progress.json`](../progress.json).
 
-Initial baseline: 0% (license + ignore only). Current source-import round: **14% (+6 points since the previous 8% report)**. Source import alone is not a runnable Firefox extension; no browser functionality has been claimed complete.
+Initial baseline: 0% (license + ignore only). Current Firefox-platform round: **27% (+13 points since the previous 14% report)**. Action injection, disposable native host registration and baseline tests are verified; actual Firefox/browser playback and real Piper synthesis are not.
 
 | Stage | Fixed weight |
 | --- | ---: |
@@ -43,14 +43,14 @@ Initial baseline: 0% (license + ignore only). Current source-import round: **14%
 - [x] **📥 S01** · **6%** — Import curated reader and pronunciation source. Acceptance: Copied files trace to pinned Edge commit; exclude unused Windows assets and generated binaries.
 - [ ] **📖 S02** · **5%** — Preserve DOM text model, highlighter and selection mappings. Acceptance: Unit tests cover multi-block reading, editable exclusion, CSS Highlight mapping, seek.
 - [ ] **🧹 S03** · **3%** — Remove Edge online and Windows-only playback dependencies. Acceptance: No active references to Direct Read Aloud, chrome.tts, WIN-NATURAL or Windows host.
-- [ ] **🧩 S04** · **4%** — Port action-triggered on-demand script and CSS injection. Acceptance: One action click installs a singleton reader, retry and stop are deterministic.
+- [x] **🧩 S04** · **4%** — Port action-triggered on-demand script and CSS injection. Acceptance: One action click installs a singleton reader, retry and stop are deterministic.
 - [ ] **🛡️ S05** · **3%** — Enforce low idle cost and no focus theft. Acceptance: No automatic page injection, broad observer, composer write or unbounded DOM scan.
 
 ### Firefox integration — 31%
 
 - [ ] **🦊 F01** · **5%** — Create Firefox MV3 manifest and fixed Gecko ID. Acceptance: Manifest loads without schema errors in isolated Firefox and declares only justified permissions.
 - [ ] **🧠 F02** · **6%** — Move orchestration to Firefox background event page. Acceptance: Messaging, active tab, native port, tab-close cleanup and suspension/restart tested.
-- [ ] **🔌 F03** · **6%** — Implement dedicated Firefox Native Messaging manifest and installer. Acceptance: Gecko allowed_extensions, correct per-user path and isolated installation; never modify Edge host.
+- [x] **🔌 F03** · **6%** — Implement dedicated Firefox Native Messaging manifest and installer. Acceptance: Gecko allowed_extensions, correct per-user path and isolated installation; never modify Edge host.
 - [ ] **🐍 F04** · **5%** — Reuse Piper safely as CPU-only native backend. Acceptance: Native hello, enumerate, synthesize and cancel pass; existing voices and files untouched.
 - [ ] **🔊 F05** · **7%** — Replace Chromium offscreen audio playback and timing. Acceptance: Firefox-compatible extension-owned media, word events, pause/resume and autoplay recovery tested.
 - [ ] **⏯️ F06** · **2%** — Restore cross-tab ownership and cancellation. Acceptance: No stale audio continues on stop, tab switch, extension reload or rapid restart.
@@ -65,7 +65,7 @@ Initial baseline: 0% (license + ignore only). Current source-import round: **14%
 
 ### Verification — 17%
 
-- [ ] **🧪 T01** · **3%** — Implement static and unit checks without npm. Acceptance: Node builtin test and syntax checks green from clean checkout.
+- [x] **🧪 T01** · **3%** — Implement static and unit checks without npm. Acceptance: Node builtin test and syntax checks green from clean checkout.
 - [ ] **📡 T02** · **3%** — Test native messaging protocol and failure boundaries. Acceptance: Synthetic framing, malformed frames, disconnects, cancellation and timeouts pass.
 - [ ] **🎼 T03** · **4%** — Stress playback timing and lifecycle. Acceptance: Long text, rapid play/pause, no leaks, suspended contexts and reload failures exercised.
 - [ ] **🧫 T04** · **4%** — Automate disposable Firefox end-to-end tests. Acceptance: Headless isolated Firefox tests for injection, reader, settings and native mock; no real profile access.

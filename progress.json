@@ -8,10 +8,10 @@
     "note": "Repository initially contained only LICENSE and .gitignore"
   },
   "asOf": "2026-10-27",
-  "completedWeight": 14,
+  "completedWeight": 27,
   "totalWeight": 100,
-  "percent": 14,
-  "roundDelta": 6,
+  "percent": 27,
+  "roundDelta": 13,
   "source": {
     "repo": "sguzman/edge-tts",
     "branch": "development/linux-piper-v1",
@@ -119,8 +119,12 @@
       "weight": 4,
       "title": "Port action-triggered on-demand script and CSS injection",
       "acceptance": "One action click installs a singleton reader, retry and stop are deterministic",
-      "status": "todo",
-      "evidence": []
+      "status": "done",
+      "evidence": [
+        "src/background/action.js action-triggered singleton and one-shot reinjection",
+        "tests/firefox-action.test.js and tests/content-bootstrap.test.js passed at GitHub Actions run 40527307392",
+        "Imported content bootstrap tested toggle, stop, disposal and reopen"
+      ]
     },
     {
       "id": "S05",
@@ -159,8 +163,12 @@
       "weight": 6,
       "title": "Implement dedicated Firefox Native Messaging manifest and installer",
       "acceptance": "Gecko allowed_extensions, correct per-user path and isolated installation; never modify Edge host",
-      "status": "todo",
-      "evidence": []
+      "status": "done",
+      "evidence": [
+        "native/linux-piper/install-native-host.sh registers per-user Gecko allowed_extensions manifest with firefox-tts@sguzman.dev",
+        "tests/test_host_isolation.py installs twice in disposable HOME, validates manifest and executes stdlib handshake",
+        "Firefox APP_HOME writes distinct from read-only Edge voices; old Edge sentinel unchanged, CI run 40527307392"
+      ]
     },
     {
       "id": "F04",
@@ -249,8 +257,11 @@
       "weight": 3,
       "title": "Implement static and unit checks without npm",
       "acceptance": "Node builtin test and syntax checks green from clean checkout",
-      "status": "todo",
-      "evidence": []
+      "status": "done",
+      "evidence": [
+        "GitHub Actions no-npm CI: node --check, node --test, Python compile, bash -n, Python unittest",
+        "All checks passed at run 40527307392; head 981b6df1398bb9332735b0b4f0d5b4bc10cb701a"
+      ]
     },
     {
       "id": "T02",
@@ -323,14 +334,19 @@
       "evidence": []
     }
   ],
-  "previousPercent": 8,
-  "round": "source-import-1",
+  "previousPercent": 14,
+  "round": "firefox-platform-1",
   "stageCompleted": {
     "Governance": 8,
-    "Core port": 6,
-    "Firefox integration": 0,
+    "Core port": 10,
+    "Firefox integration": 6,
     "User experience": 0,
-    "Verification": 0,
+    "Verification": 3,
     "Release": 0
+  },
+  "lastGreenCI": {
+    "runId": 40527307392,
+    "headSha": "981b6df1398bb9332735b0b4f0d5b4bc10cb701a",
+    "note": "Synthetic/stdlib tests on GitHub Actions Linux runner, not a real Firefox browser or Piper model"
   }
 }
