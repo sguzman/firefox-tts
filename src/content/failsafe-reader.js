@@ -1,0 +1,555 @@
+(function attachFailSafeReader(root, factory) {
+  const api = factory(root);
+
+  if (typeof module === "object" && module.exports) {
+    module.exports = api;
+  }
+
+  if (root.EdgeTtsExtension?.Reader && api.FailSafeReaderApp) {
+    root.EdgeTtsExtension.Reader.ReaderApp = api.FailSafeReaderApp;
+  }
+})(globalThis, function createFailSafeReaderApi(root) {
+  const BaseReaderApp = root.EdgeTtsExtension?.Reader?.ReaderApp;
+  const PLAYBACK_LIVENESS_TIMEOUT_MS = 7500;
+  const DIRECT_CONTINUATION_TIMEOUT_MS = 7500;
+  const FAILSAFE_RESTART_DELAY_MS = 150;
+
+  function advanceCursorOneSegment(model, blockIndex, segmentIndex) {
+    const blocks = model?.blocks;
+    if (!Array.isArray(blocks) || blocks.length === 0) {
+      return null;
+    }
+
+    const currentBlock = blocks[blockIndex];
+    if (currentBlock?.segments?.length) {
+      const nextSegmentIndex = Number(segmentIndex) + 1;
+      if (nextSegmentIndex >= 0 && nextSegmentIndex < currentBlock.segments.length) {
+        return { blockIndex, segmentIndex: nextSegmentIndex };
+      }
+    }
+
+    for (
+      let nextBlockIndex = Number(blockIndex) + 1;
+      nextBlockIndex < blocks.length;
+      nextBlockIndex += 1
+    ) {
+      if (blocks[nextBlockIndex]?.segments?.length) {
+        return { blockIndex: nextBlockIndex, segmentIndex: 0 };
+      }
+    }
+
+    return null;
+  }
+
+  function isRecoverableReaderError(error) {
+    return /^Speech synthesis failed:/i.test(String(error?.message || ""));
+  }
+
+  function directTransportHasPendingWork(speech) {
+    if (!speech?.directSessionMode) return false;
+
+    if (
+      speech.directActive ||
+      speech.linuxPiperPausedInPlace ||
+      speech.linuxPiperSentencePauseTimer != null
+    ) {
+      return true;
+    }
+
+    return Number(speech.linuxPiperRequests?.size) > 0;
+  }
+
+  function blockText(block) {
+    return String(block?.text || "").trim();
+  }
+
+  function sameBlockRole(left, right) {
+    return String(left?.authorRole || "") === String(right?.authorRole || "");
+  }
+
+  function matchingSegmentPrefixLength(leftSegments, rightSegments) {
+    const left = Array.isArray(leftSegments) ? leftSegments : [];
+    const right = Array.isArray(rightSegments) ? rightSegments : [];
+    const limit = Math.min(left.length, right.length);
+    let index = 0;
+    while (index < limit && String(left[index]?.text || "") === String(right[index]?.text || "")) {
+      index += 1;
+    }
+    return index;
+  }
+
+  function findFreshTerminalContinuation(previousModel, freshModel) {
+    const previousBlocks = previousModel?.blocks;
+    const freshBlocks = freshModel?.blocks;
+    if (
+      !Array.isArray(previousBlocks) ||
+      previousBlocks.length === 0 ||
+      !Array.isArray(freshBlocks) ||
+      freshBlocks.length === 0
+    ) {
+      return null;
+    }
+
+    const previousLast = previousBlocks[previousBlocks.length - 1];
+    const previousText = blockText(previousLast);
+    if (!previousText) {
+      return null;
+    }
+
+    for (let index = freshBlocks.length - 1; index >= 0; index -= 1) {
+      const freshBlock = freshBlocks[index];
+      if (!sameBlockRole(previousLast, freshBlock) || blockText(freshBlock) !== previousText) {
+        continue;
+      }
+
+      if (index + 1 < freshBlocks.length) {
+        return {
+          blockIndex: index + 1,
+          segmentIndex: 0,
+          reason: "appended-block"
+        };
+      }
+      return null;
+    }
+
+    for (let index = freshBlocks.length - 1; index >= 0; index -= 1) {
+      const freshBlock = freshBlocks[index];
+      const freshText = blockText(freshBlock);
+      if (
+        !sameBlockRole(previousLast, freshBlock) ||
+        !freshText.startsWith(previousText) ||
+        freshText.length <= previousText.length
+      ) {
+        continue;
+      }
+
+      const previousSegments = previousLast?.segments || [];
+      const freshSegments = freshBlock?.segments || [];
+      const matchingPrefix = matchingSegmentPrefixLength(previousSegments, freshSegments);
+      if (freshSegments.length === 0) {
+        return null;
+      }
+
+      const segmentIndex =
+        matchingPrefix >= previousSegments.length
+          ? Math.min(previousSegments.length, freshSegments.length - 1)
+          : Math.max(0, Math.min(previousSegments.length - 1, freshSegments.length - 1));
+
+      return {
+        blockIndex: index,
+        segmentIndex,
+        reason: "grown-terminal-block"
+      };
+    }
+
+    return null;
+  }
+
+  if (!BaseReaderApp) {
+    return {
+      FailSafeReaderApp: null,
+      DIRECT_CONTINUATION_TIMEOUT_MS,
+      FAILSAFE_RESTART_DELAY_MS,
+      PLAYBACK_LIVENESS_TIMEOUT_MS,
+      advanceCursorOneSegment,
+      directTransportHasPendingWork,
+      findFreshTerminalContinuation,
+      isRecoverableReaderError,
+      matchingSegmentPrefixLength
+    };
+  }
+
+  class FailSafeReaderApp extends BaseReaderApp {
+    constructor() {
+      super();
+      this.playbackLivenessTimer = null;
+      this.playbackLivenessSerial = 0;
+      this.playbackLivenessTimeoutMs = PLAYBACK_LIVENESS_TIMEOUT_MS;
+      this.directContinuationTimer = null;
+      this.directContinuationSerial = 0;
+      this.directContinuationTimeoutMs = DIRECT_CONTINUATION_TIMEOUT_MS;
+      this.directContinuationRetryKey = "";
+      this.directContinuationRetryCount = 0;
+      this.failsafeRestartDelayMs = FAILSAFE_RESTART_DELAY_MS;
+    }
+
+    clearPlaybackLivenessWatchdog() {
+      this.playbackLivenessSerial += 1;
+      if (this.playbackLivenessTimer !== null) {
+        root.clearTimeout(this.playbackLivenessTimer);
+        this.playbackLivenessTimer = null;
+      }
+    }
+
+    clearDirectContinuationWatchdog({ resetRetry = false } = {}) {
+      this.directContinuationSerial += 1;
+      if (this.directContinuationTimer !== null) {
+        root.clearTimeout(this.directContinuationTimer);
+        this.directContinuationTimer = null;
+      }
+      if (resetRetry) {
+        this.directContinuationRetryKey = "";
+        this.directContinuationRetryCount = 0;
+      }
+    }
+
+    armDirectContinuationWatchdog() {
+      this.clearDirectContinuationWatchdog();
+
+      if (
+        this.selectedVoice?.__edgeTtsSource !== "linux-piper" ||
+        this.stopped ||
+        this.paused ||
+        !this.audioOwner ||
+        !this.model
+      ) {
+        return;
+      }
+
+      const serial = ++this.directContinuationSerial;
+      const boundarySerial = this.boundarySerial;
+      const cursor = {
+        blockIndex: this.currentBlockIndex,
+        segmentIndex: this.currentSegmentIndex
+      };
+      const cursorKey = String(cursor.blockIndex) + ":" + String(cursor.segmentIndex);
+
+      this.directContinuationTimer = root.setTimeout(() => {
+        this.directContinuationTimer = null;
+        if (
+          serial !== this.directContinuationSerial ||
+          this.stopped ||
+          this.paused ||
+          !this.audioOwner ||
+          !this.model
+        ) {
+          return;
+        }
+
+        if (this.boundarySerial !== boundarySerial) {
+          this.clearDirectContinuationWatchdog({ resetRetry: true });
+          return;
+        }
+
+        // Once Piper has an actual synthesis request, sentence-pause timer, or
+        // running media clock, that layer owns liveness with its own timeout.
+        // This watchdog covers only the otherwise-unprotected handoff from a
+        // logical reader batch to the next concrete Piper task.
+        if (directTransportHasPendingWork(this.speech)) {
+          return;
+        }
+
+        if (this.directContinuationRetryKey === cursorKey) {
+          this.directContinuationRetryCount += 1;
+        } else {
+          this.directContinuationRetryKey = cursorKey;
+          this.directContinuationRetryCount = 1;
+        }
+
+        if (this.directContinuationRetryCount > 1) {
+          console.error(
+            "Edge Natural TTS Piper continuation stalled twice at " +
+              cursorKey +
+              "; stopping with an explicit error."
+          );
+          this.clearDirectContinuationWatchdog({ resetRetry: true });
+          return super.handleError(
+            new Error("Linux Piper TTS failed: batch continuation stalled after retry.")
+          );
+        }
+
+        console.warn(
+          "Edge Natural TTS Piper batch handoff made no progress at " +
+            cursorKey +
+            "; retrying the same cursor once."
+        );
+
+        try {
+          this.discardLocalSpeechState?.();
+        } catch (error) {
+          console.warn(
+            "Edge Natural TTS could not retire the stalled Piper handoff.",
+            error
+          );
+        }
+
+        this.activeBatchEndBlockIndex = -1;
+        this.toolbar?.setStatus?.("Recovering Piper batch handoff…");
+
+        const restartSerial = ++this.directContinuationSerial;
+        root.setTimeout(() => {
+          if (
+            restartSerial !== this.directContinuationSerial ||
+            this.stopped ||
+            this.paused ||
+            !this.audioOwner ||
+            !this.model
+          ) {
+            return;
+          }
+          this.speakCurrentPosition();
+        }, Math.max(0, Number(this.failsafeRestartDelayMs) || 0));
+      }, Math.max(
+        100,
+        Number(this.directContinuationTimeoutMs) || DIRECT_CONTINUATION_TIMEOUT_MS
+      ));
+    }
+
+    scheduleForcedContinuation(cursor, status) {
+      if (!this.audioOwner || this.stopped || this.paused) {
+        return false;
+      }
+
+      const nextCursor = advanceCursorOneSegment(
+        this.model,
+        cursor.blockIndex,
+        cursor.segmentIndex
+      );
+
+      if (!nextCursor) {
+        this.finishDocument();
+        return false;
+      }
+
+      if (Number.isFinite(Number(this.batchRequestSerial))) {
+        this.batchRequestSerial += 1;
+      }
+      this.clearReliabilityTimers?.();
+      this.activeBatchRequest = null;
+      this.activeBatchEndBlockIndex = -1;
+      this.currentBlockIndex = nextCursor.blockIndex;
+      this.currentSegmentIndex = nextCursor.segmentIndex;
+      this.discardLocalSpeechState?.();
+      this.toolbar?.setStatus?.(status);
+
+      const restartSerial = ++this.playbackLivenessSerial;
+      root.setTimeout(() => {
+        if (
+          restartSerial !== this.playbackLivenessSerial ||
+          this.stopped ||
+          this.paused ||
+          !this.audioOwner ||
+          !this.model
+        ) {
+          return;
+        }
+        this.speakCurrentPosition();
+      }, Math.max(0, Number(this.failsafeRestartDelayMs) || 0));
+
+      return true;
+    }
+
+    armPlaybackLivenessWatchdog() {
+      if (this.playbackLivenessTimer !== null) {
+        root.clearTimeout(this.playbackLivenessTimer);
+        this.playbackLivenessTimer = null;
+      }
+
+      if (this.stopped || this.paused || !this.audioOwner || !this.model) {
+        return;
+      }
+
+      // Direct audio (Natural MP3 / Piper WAV) owns an actual media clock.
+      // Boundary silence is not evidence that its transport is stalled: long
+      // sentences and imperfect boundary streams can legitimately go seconds
+      // without a word callback. Reader-level recovery used to cancel healthy
+      // Piper audio and restart from a nearby token, producing repeated lines.
+      // Direct backends must diagnose stalls from their media clock instead.
+      if (this.speech?.directSessionMode) {
+        return;
+      }
+
+      const serial = ++this.playbackLivenessSerial;
+      const boundarySerial = this.boundarySerial;
+      const cursor = {
+        blockIndex: this.currentBlockIndex,
+        segmentIndex: this.currentSegmentIndex
+      };
+
+      this.playbackLivenessTimer = root.setTimeout(() => {
+        this.playbackLivenessTimer = null;
+        if (
+          serial !== this.playbackLivenessSerial ||
+          this.stopped ||
+          this.paused ||
+          !this.audioOwner ||
+          !this.model
+        ) {
+          return;
+        }
+
+        if (this.boundarySerial !== boundarySerial) {
+          this.armPlaybackLivenessWatchdog();
+          return;
+        }
+
+        console.warn(
+          `Edge Natural TTS reader-level liveness timeout at ${cursor.blockIndex}:${cursor.segmentIndex}; ` +
+            "forcing continuation instead of waiting for manual Stop/Play."
+        );
+
+        this.scheduleForcedContinuation(cursor, "Recovering playback…");
+      }, Math.max(100, Number(this.playbackLivenessTimeoutMs) || PLAYBACK_LIVENESS_TIMEOUT_MS));
+    }
+
+    speakCurrentPosition() {
+      const result = super.speakCurrentPosition();
+      this.armPlaybackLivenessWatchdog();
+      this.armDirectContinuationWatchdog();
+      return result;
+    }
+
+    handleSpeechStart(latencyMs) {
+      const result = super.handleSpeechStart(latencyMs);
+      this.clearDirectContinuationWatchdog({ resetRetry: true });
+      this.armPlaybackLivenessWatchdog();
+      return result;
+    }
+
+    handleBoundary(segment, metadata = null) {
+      const result = super.handleBoundary(segment, metadata);
+      this.clearDirectContinuationWatchdog({ resetRetry: true });
+      this.armPlaybackLivenessWatchdog();
+      return result;
+    }
+
+    handleBlockEnd() {
+      this.clearPlaybackLivenessWatchdog();
+      this.clearDirectContinuationWatchdog();
+      return super.handleBlockEnd();
+    }
+
+    async playPause() {
+      const result = await super.playPause();
+      if (this.stopped || this.paused || !this.audioOwner) {
+        this.clearPlaybackLivenessWatchdog();
+        this.clearDirectContinuationWatchdog({ resetRetry: true });
+      } else {
+        this.armPlaybackLivenessWatchdog();
+        this.armDirectContinuationWatchdog();
+      }
+      return result;
+    }
+
+    stop() {
+      this.clearPlaybackLivenessWatchdog();
+      this.clearDirectContinuationWatchdog({ resetRetry: true });
+      return super.stop();
+    }
+
+    refreshText() {
+      this.clearPlaybackLivenessWatchdog();
+      this.clearDirectContinuationWatchdog({ resetRetry: true });
+      return super.refreshText();
+    }
+
+    finishDocument() {
+      this.clearPlaybackLivenessWatchdog();
+      this.clearDirectContinuationWatchdog({ resetRetry: true });
+
+      const previousModel = this.model;
+      if (
+        this.enabled &&
+        !this.quitRequested &&
+        this.audioOwner &&
+        previousModel?.profile === "chatgpt" &&
+        typeof this.rebuildModel === "function"
+      ) {
+        try {
+          this.rebuildModel();
+          const continuation = findFreshTerminalContinuation(previousModel, this.model);
+          if (continuation) {
+            if (Number.isFinite(Number(this.batchRequestSerial))) {
+              this.batchRequestSerial += 1;
+            }
+            this.clearReliabilityTimers?.();
+            this.activeBatchRequest = null;
+            this.activeBatchEndBlockIndex = -1;
+            this.currentBlockIndex = continuation.blockIndex;
+            this.currentSegmentIndex = continuation.segmentIndex;
+            this.stopped = false;
+            this.paused = false;
+            this.discardLocalSpeechState?.();
+            this.toolbar?.setStatus?.("Continuing updated text…");
+
+            console.warn(
+              `Edge Natural TTS terminal snapshot was stale (${continuation.reason}); continuing automatically.`
+            );
+
+            const restartSerial = ++this.playbackLivenessSerial;
+            root.setTimeout(() => {
+              if (
+                restartSerial !== this.playbackLivenessSerial ||
+                this.stopped ||
+                this.paused ||
+                !this.audioOwner ||
+                !this.model
+              ) {
+                return;
+              }
+              this.speakCurrentPosition();
+            }, Math.max(0, Number(this.failsafeRestartDelayMs) || 0));
+            return;
+          }
+        } catch (error) {
+          console.warn("Edge Natural TTS could not verify the terminal text snapshot.", error);
+          this.model = previousModel;
+        }
+      }
+
+      root.__EDGE_TTS_LAST_TERMINAL__ = {
+        at: Date.now(),
+        reason: "verified-document-end",
+        profile: this.model?.profile || previousModel?.profile || "unknown",
+        blockCount: this.model?.blocks?.length || previousModel?.blocks?.length || 0
+      };
+      return super.finishDocument();
+    }
+
+    handleError(error) {
+      this.clearPlaybackLivenessWatchdog();
+      this.clearDirectContinuationWatchdog({ resetRetry: true });
+
+      if (
+        isRecoverableReaderError(error) &&
+        !this.stopped &&
+        !this.paused &&
+        this.audioOwner &&
+        this.model
+      ) {
+        const cursor = {
+          blockIndex: this.currentBlockIndex,
+          segmentIndex: this.currentSegmentIndex
+        };
+        console.warn(
+          `Edge Natural TTS transport error at ${cursor.blockIndex}:${cursor.segmentIndex}; ` +
+            "continuing automatically.",
+          error
+        );
+        this.scheduleForcedContinuation(cursor, "Recovering speech error…");
+        return;
+      }
+
+      root.__EDGE_TTS_LAST_TERMINAL__ = {
+        at: Date.now(),
+        reason: "unrecoverable-error",
+        message: String(error?.message || error || "Unknown error"),
+        blockIndex: this.currentBlockIndex,
+        segmentIndex: this.currentSegmentIndex
+      };
+      return super.handleError(error);
+    }
+  }
+
+  return {
+    FailSafeReaderApp,
+    DIRECT_CONTINUATION_TIMEOUT_MS,
+    FAILSAFE_RESTART_DELAY_MS,
+    PLAYBACK_LIVENESS_TIMEOUT_MS,
+    advanceCursorOneSegment,
+    directTransportHasPendingWork,
+    findFreshTerminalContinuation,
+    isRecoverableReaderError,
+    matchingSegmentPrefixLength
+  };
+});

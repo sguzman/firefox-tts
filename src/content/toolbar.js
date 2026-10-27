@@ -1,0 +1,458 @@
+(function attachToolbar(root) {
+  const extension = root.EdgeTtsExtension;
+
+  function clamp(value, minimum, maximum) {
+    return Math.min(Math.max(value, minimum), maximum);
+  }
+
+  function filterVoices(voices, query) {
+    const terms = String(query || "")
+      .trim()
+      .toLocaleLowerCase()
+      .split(/\s+/)
+      .filter(Boolean);
+
+    if (terms.length === 0) {
+      return [...voices];
+    }
+
+    return voices.filter((voice) => {
+      const searchable = `${voice.name || ""} ${voice.lang || ""}`.toLocaleLowerCase();
+      return terms.every((term) => searchable.includes(term));
+    });
+  }
+
+  class Toolbar {
+    constructor(handlers) {
+      this.handlers = handlers;
+      this.element = null;
+      this.playButton = null;
+      this.stopButton = null;
+      this.refreshButton = null;
+      this.quitButton = null;
+      this.voiceSelect = null;
+      this.voiceFilterInput = null;
+      this.clearVoiceFilterButton = null;
+      this.pronunciationOptionsButton = null;
+      this.voices = [];
+      this.selectedVoiceName = "";
+      this.rateInput = null;
+      this.rateValue = null;
+      this.batchCharsInput = null;
+      this.batchCharsValue = null;
+      this.sentencePauseInput = null;
+      this.sentencePauseValue = null;
+      this.status = null;
+      this.wordColorInput = null;
+      this.sentenceColorInput = null;
+      this.autoScrollInput = null;
+      this.clickToSeekInput = null;
+      this.minimizeButton = null;
+      this.minimized = false;
+      this.dragState = null;
+      this.boundPointerMove = (event) => this.handlePointerMove(event);
+      this.boundPointerUp = (event) => this.handlePointerUp(event);
+      this.boundResize = () => this.clampCurrentPosition();
+    }
+
+    mount() {
+      if (this.element) {
+        this.element.hidden = false;
+        return;
+      }
+
+      const element = document.createElement("section");
+      element.id = "edge-tts-toolbar";
+      element.dataset.edgeTtsUi = "true";
+      element.setAttribute("aria-label", "Edge Natural TTS controls");
+      element.innerHTML = `
+        <div class="edge-tts-header" data-edge-tts-drag-handle>
+          <strong>Edge TTS</strong>
+          <span data-edge-tts-status>Starting…</span>
+          <button type="button" data-edge-tts-action="quit" title="Quit Edge TTS for this tab" aria-label="Quit Edge TTS for this tab">Quit</button>
+          <button type="button" class="edge-tts-icon-button" data-edge-tts-action="minimize" title="Minimize controls" aria-label="Minimize controls">−</button>
+        </div>
+        <div class="edge-tts-row edge-tts-transport-row">
+          <button type="button" data-edge-tts-action="play" title="Pause or resume">Pause</button>
+          <button type="button" data-edge-tts-action="stop" title="Stop reading">Stop</button>
+          <button type="button" data-edge-tts-action="refresh" title="Re-scan readable page text">Refresh text</button>
+        </div>
+        <div data-edge-tts-expanded>
+          <div class="edge-tts-row edge-tts-voice-filter-row">
+            <label>
+              Filter
+              <input data-edge-tts-voice-filter type="text" placeholder="Search voices…" autocomplete="off" spellcheck="false" aria-label="Filter voices">
+            </label>
+            <button type="button" class="edge-tts-clear-filter-button" data-edge-tts-action="clear-voice-filter" title="Clear voice filter" aria-label="Clear voice filter" disabled>×</button>
+          </div>
+          <div class="edge-tts-row">
+            <label>
+              Voice
+              <select data-edge-tts-voice aria-label="Voice"></select>
+            </label>
+            <button type="button" data-edge-tts-action="pronunciation-options" title="Edit Piper pronunciation, abbreviation, acronym, path, and transformation rules">Edit pronunciation</button>
+          </div>
+          <div class="edge-tts-row">
+            <label class="edge-tts-rate-label">
+              Speed
+              <input data-edge-tts-rate type="range" min="0.5" max="2.5" step="0.1" value="1">
+              <output data-edge-tts-rate-value>1.0×</output>
+            </label>
+          </div>
+          <div class="edge-tts-row">
+            <label class="edge-tts-rate-label" title="Combine adjacent short paragraphs until roughly this many characters are ready for one speech request.">
+              Batch target
+              <input data-edge-tts-batch-chars type="range" min="400" max="2400" step="100" value="1200">
+              <output data-edge-tts-batch-chars-value>1200</output>
+            </label>
+          </div>
+          <div class="edge-tts-row">
+            <label class="edge-tts-rate-label" title="Extra real-time pause inserted between Piper sentence WAVs. This does not alter Piper synthesis or prosody.">
+              Sentence pause
+              <input data-edge-tts-sentence-pause type="range" min="0" max="1200" step="50" value="300">
+              <output data-edge-tts-sentence-pause-value>300 ms</output>
+            </label>
+          </div>
+          <div class="edge-tts-row edge-tts-color-row">
+            <label>
+              Word highlight
+              <input data-edge-tts-word-color type="color" value="#ffd60a" aria-label="Word highlight color">
+            </label>
+            <label>
+              Sentence highlight
+              <input data-edge-tts-sentence-color type="color" value="#bde0fe" aria-label="Sentence highlight color">
+            </label>
+          </div>
+          <div class="edge-tts-row">
+            <label class="edge-tts-checkbox-label">
+              <input data-edge-tts-click-to-seek type="checkbox">
+              <span class="edge-tts-checkbox-control" aria-hidden="true"></span>
+              <span>Click page text to jump TTS</span>
+            </label>
+          </div>
+          <div class="edge-tts-row">
+            <label class="edge-tts-checkbox-label">
+              <input data-edge-tts-auto-scroll type="checkbox" checked>
+              <span class="edge-tts-checkbox-control" aria-hidden="true"></span>
+              <span>Auto-scroll while reading</span>
+            </label>
+          </div>
+          <div class="edge-tts-hint">Short paragraphs are grouped to the batch target · Click-to-seek is off by default · Refresh text after dynamic page changes</div>
+        </div>
+      `;
+
+      document.documentElement.appendChild(element);
+      this.element = element;
+      this.playButton = element.querySelector("[data-edge-tts-action='play']");
+      this.stopButton = element.querySelector("[data-edge-tts-action='stop']");
+      this.refreshButton = element.querySelector("[data-edge-tts-action='refresh']");
+      this.quitButton = element.querySelector("[data-edge-tts-action='quit']");
+      this.voiceSelect = element.querySelector("[data-edge-tts-voice]");
+      this.voiceFilterInput = element.querySelector("[data-edge-tts-voice-filter]");
+      this.clearVoiceFilterButton = element.querySelector("[data-edge-tts-action='clear-voice-filter']");
+      this.pronunciationOptionsButton = element.querySelector("[data-edge-tts-action='pronunciation-options']");
+      this.rateInput = element.querySelector("[data-edge-tts-rate]");
+      this.rateValue = element.querySelector("[data-edge-tts-rate-value]");
+      this.batchCharsInput = element.querySelector("[data-edge-tts-batch-chars]");
+      this.batchCharsValue = element.querySelector("[data-edge-tts-batch-chars-value]");
+      this.sentencePauseInput = element.querySelector("[data-edge-tts-sentence-pause]");
+      this.sentencePauseValue = element.querySelector("[data-edge-tts-sentence-pause-value]");
+      this.status = element.querySelector("[data-edge-tts-status]");
+      this.wordColorInput = element.querySelector("[data-edge-tts-word-color]");
+      this.sentenceColorInput = element.querySelector("[data-edge-tts-sentence-color]");
+      this.clickToSeekInput = element.querySelector("[data-edge-tts-click-to-seek]");
+      this.autoScrollInput = element.querySelector("[data-edge-tts-auto-scroll]");
+      this.minimizeButton = element.querySelector("[data-edge-tts-action='minimize']");
+      this.dragHandle = element.querySelector("[data-edge-tts-drag-handle]");
+
+      this.playButton.addEventListener("click", () => this.handlers.onPlayPause());
+      this.stopButton.addEventListener("click", () => this.handlers.onStop());
+      this.refreshButton.addEventListener("click", () => this.handlers.onRefresh());
+      this.quitButton.addEventListener("click", () => this.handlers.onQuit?.());
+      this.voiceSelect.addEventListener("change", () => {
+        if (this.voiceSelect.value) {
+          this.selectedVoiceName = this.voiceSelect.value;
+          this.handlers.onVoice(this.selectedVoiceName);
+        }
+      });
+      this.voiceFilterInput.addEventListener("input", () => this.renderVoiceOptions());
+      this.clearVoiceFilterButton.addEventListener("click", () => this.clearVoiceFilter());
+      this.pronunciationOptionsButton.addEventListener("click", () => {
+        this.handlers.onPronunciationOptions?.();
+      });
+      this.rateInput.addEventListener("input", () => {
+        const rate = Number(this.rateInput.value);
+        this.rateValue.value = `${rate.toFixed(1)}×`;
+      });
+      this.rateInput.addEventListener("change", () => {
+        this.handlers.onRate(Number(this.rateInput.value));
+      });
+      this.batchCharsInput.addEventListener("input", () => {
+        this.batchCharsValue.value = String(Number(this.batchCharsInput.value));
+      });
+      this.batchCharsInput.addEventListener("change", () => {
+        this.handlers.onBatchChars(Number(this.batchCharsInput.value));
+      });
+      this.sentencePauseInput.addEventListener("input", () => {
+        this.sentencePauseValue.value = `${Number(this.sentencePauseInput.value)} ms`;
+      });
+      this.sentencePauseInput.addEventListener("change", () => {
+        this.handlers.onSentencePause?.(Number(this.sentencePauseInput.value));
+      });
+      this.wordColorInput.addEventListener("input", () => {
+        this.handlers.onWordColor(this.wordColorInput.value);
+      });
+      this.sentenceColorInput.addEventListener("input", () => {
+        this.handlers.onSentenceColor(this.sentenceColorInput.value);
+      });
+      this.clickToSeekInput.addEventListener("change", () => {
+        this.handlers.onClickToSeek(this.clickToSeekInput.checked);
+      });
+      this.autoScrollInput.addEventListener("change", () => {
+        this.handlers.onAutoScroll(this.autoScrollInput.checked);
+      });
+      this.minimizeButton.addEventListener("click", () => {
+        this.setMinimized(!this.minimized);
+        this.handlers.onMinimized(this.minimized);
+      });
+      this.dragHandle.addEventListener("pointerdown", (event) => this.handlePointerDown(event));
+      root.addEventListener("resize", this.boundResize);
+    }
+
+    hide() {
+      if (this.element) {
+        this.element.hidden = true;
+      }
+    }
+
+    destroy() {
+      root.removeEventListener("resize", this.boundResize);
+      document.removeEventListener("pointermove", this.boundPointerMove, true);
+      document.removeEventListener("pointerup", this.boundPointerUp, true);
+      document.removeEventListener("pointercancel", this.boundPointerUp, true);
+      this.dragState = null;
+      this.element?.remove();
+      this.element = null;
+      this.playButton = null;
+      this.stopButton = null;
+      this.refreshButton = null;
+      this.quitButton = null;
+      this.voiceSelect = null;
+      this.voiceFilterInput = null;
+      this.clearVoiceFilterButton = null;
+      this.pronunciationOptionsButton = null;
+      this.rateInput = null;
+      this.rateValue = null;
+      this.batchCharsInput = null;
+      this.batchCharsValue = null;
+      this.sentencePauseInput = null;
+      this.sentencePauseValue = null;
+      this.status = null;
+      this.wordColorInput = null;
+      this.sentenceColorInput = null;
+      this.autoScrollInput = null;
+      this.clickToSeekInput = null;
+      this.minimizeButton = null;
+      this.dragHandle = null;
+    }
+
+    setPaused(paused) {
+      if (this.playButton) {
+        this.playButton.textContent = paused ? "Resume" : "Pause";
+      }
+      this.setStatus(paused ? "Paused" : "Reading");
+    }
+
+    setStopped() {
+      if (this.playButton) {
+        this.playButton.textContent = "Start";
+      }
+      this.setStatus("Stopped");
+    }
+
+    setStatus(text) {
+      if (this.status) {
+        const value = String(text || "");
+        this.status.textContent = value;
+        this.status.title = value;
+        this.status.classList.toggle(
+          "edge-tts-error-status",
+          /^Error:/i.test(value)
+        );
+      }
+    }
+
+    setRate(rate) {
+      if (!this.rateInput || !this.rateValue) return;
+      this.rateInput.value = String(rate);
+      this.rateValue.value = `${Number(rate).toFixed(1)}×`;
+    }
+
+    setBatchChars(chars) {
+      if (!this.batchCharsInput || !this.batchCharsValue) return;
+      const numeric = Number(chars);
+      this.batchCharsInput.value = String(numeric);
+      this.batchCharsValue.value = String(numeric);
+    }
+
+    setSentencePause(ms) {
+      if (!this.sentencePauseInput || !this.sentencePauseValue) return;
+      const numeric = Number(ms);
+      this.sentencePauseInput.value = String(numeric);
+      this.sentencePauseValue.value = `${numeric} ms`;
+    }
+
+    setVoices(voices, selectedName) {
+      this.voices = [...voices];
+      this.selectedVoiceName = selectedName || "";
+      this.renderVoiceOptions();
+    }
+
+    renderVoiceOptions() {
+      if (!this.voiceSelect) return;
+
+      const query = this.voiceFilterInput?.value || "";
+      const filteredVoices = filterVoices(this.voices, query);
+      const selectedIsVisible = filteredVoices.some(
+        (voice) => voice.name === this.selectedVoiceName
+      );
+
+      this.voiceSelect.replaceChildren();
+
+      if (filteredVoices.length === 0) {
+        const option = document.createElement("option");
+        option.value = "";
+        option.textContent = "No matching voices";
+        option.disabled = true;
+        option.selected = true;
+        this.voiceSelect.appendChild(option);
+      } else if (!selectedIsVisible) {
+        const option = document.createElement("option");
+        option.value = "";
+        option.textContent = `${filteredVoices.length} matching voice${filteredVoices.length === 1 ? "" : "s"} — choose one`;
+        option.disabled = true;
+        option.selected = true;
+        this.voiceSelect.appendChild(option);
+      }
+
+      for (const voice of filteredVoices) {
+        const option = document.createElement("option");
+        option.value = voice.name;
+        option.textContent = `${voice.name} — ${voice.lang}`;
+        option.selected = voice.name === this.selectedVoiceName;
+        this.voiceSelect.appendChild(option);
+      }
+
+      if (this.clearVoiceFilterButton) {
+        this.clearVoiceFilterButton.disabled = query.length === 0;
+      }
+    }
+
+    clearVoiceFilter() {
+      if (!this.voiceFilterInput) return;
+      this.voiceFilterInput.value = "";
+      this.renderVoiceOptions();
+      this.voiceFilterInput.focus();
+    }
+
+    setHighlightColors(wordColor, sentenceColor) {
+      if (this.wordColorInput) this.wordColorInput.value = wordColor;
+      if (this.sentenceColorInput) this.sentenceColorInput.value = sentenceColor;
+    }
+
+    setAutoScroll(enabled) {
+      if (this.autoScrollInput) this.autoScrollInput.checked = Boolean(enabled);
+    }
+
+    setClickToSeek(enabled) {
+      if (this.clickToSeekInput) this.clickToSeekInput.checked = Boolean(enabled);
+    }
+
+    setMinimized(minimized) {
+      this.minimized = Boolean(minimized);
+      if (!this.element) return;
+      this.element.dataset.minimized = String(this.minimized);
+      if (this.minimizeButton) {
+        this.minimizeButton.textContent = this.minimized ? "□" : "−";
+        this.minimizeButton.title = this.minimized ? "Restore controls" : "Minimize controls";
+        this.minimizeButton.setAttribute(
+          "aria-label",
+          this.minimized ? "Restore controls" : "Minimize controls"
+        );
+      }
+      root.requestAnimationFrame?.(() => this.clampCurrentPosition());
+    }
+
+    setPosition(position) {
+      if (!this.element || !position) return;
+      const x = Number(position.x);
+      const y = Number(position.y);
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+      this.applyPosition(x, y);
+    }
+
+    handlePointerDown(event) {
+      if (event.button !== 0 || event.target.closest("button,input,select,label")) {
+        return;
+      }
+
+      const rect = this.element.getBoundingClientRect();
+      this.dragState = {
+        pointerId: event.pointerId,
+        offsetX: event.clientX - rect.left,
+        offsetY: event.clientY - rect.top
+      };
+      this.element.dataset.dragging = "true";
+      document.addEventListener("pointermove", this.boundPointerMove, true);
+      document.addEventListener("pointerup", this.boundPointerUp, true);
+      document.addEventListener("pointercancel", this.boundPointerUp, true);
+      event.preventDefault();
+    }
+
+    handlePointerMove(event) {
+      if (!this.dragState || event.pointerId !== this.dragState.pointerId) return;
+      const x = event.clientX - this.dragState.offsetX;
+      const y = event.clientY - this.dragState.offsetY;
+      this.applyPosition(x, y);
+      event.preventDefault();
+    }
+
+    handlePointerUp(event) {
+      if (!this.dragState || event.pointerId !== this.dragState.pointerId) return;
+      this.dragState = null;
+      delete this.element.dataset.dragging;
+      document.removeEventListener("pointermove", this.boundPointerMove, true);
+      document.removeEventListener("pointerup", this.boundPointerUp, true);
+      document.removeEventListener("pointercancel", this.boundPointerUp, true);
+      const rect = this.element.getBoundingClientRect();
+      this.handlers.onPosition({ x: Math.round(rect.left), y: Math.round(rect.top) });
+    }
+
+    applyPosition(x, y) {
+      if (!this.element) return;
+      const rect = this.element.getBoundingClientRect();
+      const margin = 4;
+      const maximumX = Math.max(margin, root.innerWidth - rect.width - margin);
+      const maximumY = Math.max(margin, root.innerHeight - rect.height - margin);
+      const clampedX = clamp(x, margin, maximumX);
+      const clampedY = clamp(y, margin, maximumY);
+      this.element.style.left = `${Math.round(clampedX)}px`;
+      this.element.style.top = `${Math.round(clampedY)}px`;
+      this.element.style.right = "auto";
+    }
+
+    clampCurrentPosition() {
+      if (!this.element || !this.element.style.left) return;
+      const rect = this.element.getBoundingClientRect();
+      this.applyPosition(rect.left, rect.top);
+    }
+  }
+
+  const api = { Toolbar, filterVoices };
+  if (typeof module === "object" && module.exports) {
+    module.exports = api;
+  }
+  if (extension) {
+    extension.Toolbar = api;
+  }
+})(globalThis);

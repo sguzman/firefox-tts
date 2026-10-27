@@ -1,0 +1,225 @@
+(function attachStartupFastPath(root, factory) {
+  const api = factory(root);
+
+  if (typeof module === "object" && module.exports) {
+    module.exports = api;
+  }
+
+  const ReaderApp = root.EdgeTtsExtension?.Reader?.ReaderApp;
+  if (ReaderApp && api.installStartupFastPath) {
+    api.installStartupFastPath(ReaderApp);
+  }
+})(globalThis, function createStartupFastPathApi(root) {
+  function now() {
+    return root.performance?.now?.() ?? Date.now();
+  }
+
+  function round(value) {
+    return Math.max(0, Math.round(Number(value) || 0));
+  }
+
+  function startupSummary(trace) {
+    if (!trace) return "";
+    return [
+      `total ${round(trace.totalMs)} ms`,
+      `prep ${round(trace.prepMs)} ms`,
+      `remote speech ${round(trace.speechStartMs)} ms`,
+      `model ${round(trace.modelMs)} ms`,
+      `extra voice wait ${round(trace.extraVoiceWaitMs)} ms`
+    ].join(" · ");
+  }
+
+  function installStartupFastPath(ReaderApp) {
+    const prototype = ReaderApp?.prototype;
+    if (!prototype || prototype.__edgeTtsStartupFastPathInstalled) {
+      return false;
+    }
+
+    const textModel = root.EdgeTtsExtension?.TextModel;
+    const speechModule = root.EdgeTtsExtension?.SpeechEngine;
+    const firstBlockNearViewport = textModel?.firstBlockNearViewport;
+    const isNaturalVoice = speechModule?.isNaturalVoice;
+    const isWinNaturalVoice = (voice) => voice?.__edgeTtsSource === "win-natural";
+    const isLinuxPiperVoice = (voice) => voice?.__edgeTtsSource === "linux-piper";
+    const originalHandleSpeechStart = prototype.handleSpeechStart;
+
+    if (typeof firstBlockNearViewport !== "function" || typeof isNaturalVoice !== "function") {
+      return false;
+    }
+
+    Object.defineProperty(prototype, "__edgeTtsStartupFastPathInstalled", {
+      value: true,
+      configurable: false,
+      enumerable: false,
+      writable: false
+    });
+
+    prototype.open = async function optimizedOpen() {
+      const startedAt = now();
+      const trace = {
+        active: true,
+        startedAt,
+        modelMs: 0,
+        extraVoiceWaitMs: 0,
+        prepMs: 0,
+        speechStartMs: 0,
+        totalMs: 0,
+        voiceName: ""
+      };
+      this.startupTrace = trace;
+
+      this.enabled = true;
+      this.stopped = false;
+      this.paused = false;
+      this.initialPiperRetryRemaining = 1;
+      this.sessionSpeechStarted = false;
+      this.toolbar.mount();
+      this.toolbar.setStatus("Starting…");
+
+      // Settings and the extension-level legacy catalog are part of ordinary
+      // startup. WIN-NATURAL is explicitly optional: helper discovery must
+      // never hold the reader in Starting… or prevent the existing online /
+      // legacy transports from working. Its voice-change notification refreshes
+      // the toolbar whenever the native catalog arrives.
+      const settingsReady = this.loadSettings();
+      const extensionVoicesReady = this.speech.refreshExtensionVoices?.() || Promise.resolve();
+
+      // Piper is a first-class startup backend on Linux. Unlike optional
+      // Windows Natural discovery, its catalog must settle before the initial
+      // voice choice when Piper is the saved/default backend; otherwise the first
+      // auto-start races discovery and can stall until Stop -> Play.
+      const linuxPiperVoicesReady =
+        this.speech.refreshLinuxPiperVoices?.() || Promise.resolve();
+      const pronunciationReady =
+        this.speech.refreshPronunciationConfig?.() || Promise.resolve();
+
+      const winNaturalVoicesReady = this.speech.refreshWinNaturalVoices?.() || Promise.resolve();
+      Promise.resolve(winNaturalVoicesReady).catch(() => {});
+
+      const naturalVoicesReady = this.speech.waitForVoices(
+        350,
+        (voices) => voices.some((voice) =>
+          isNaturalVoice(voice) ||
+          isWinNaturalVoice(voice) ||
+          isLinuxPiperVoice(voice)
+        )
+      );
+
+      await Promise.all([
+        settingsReady,
+        extensionVoicesReady,
+        linuxPiperVoicesReady,
+        pronunciationReady
+      ]);
+      if (!this.enabled || this.quitRequested) {
+        trace.active = false;
+        return;
+      }
+
+      // Sentence boundaries are pronunciation-config aware on the Piper branch.
+      // Never build the readable model against defaults and load the user's
+      // saved abbreviation rules afterwards.
+      const modelStartedAt = now();
+      this.rebuildModel();
+      trace.modelMs = now() - modelStartedAt;
+
+      this.applySettings();
+      await this.ensurePreferredVoiceAvailable?.();
+
+      if (
+        !this.selectedVoice &&
+        !this.voices.some((voice) =>
+          isNaturalVoice(voice) ||
+          isWinNaturalVoice(voice) ||
+          isLinuxPiperVoice(voice)
+        )
+      ) {
+        this.toolbar.setStatus("Loading voice…");
+        const voiceWaitStartedAt = now();
+        await naturalVoicesReady;
+        trace.extraVoiceWaitMs = now() - voiceWaitStartedAt;
+        if (!this.enabled || this.quitRequested) {
+          trace.active = false;
+          return;
+        }
+        await this.ensurePreferredVoiceAvailable?.();
+      }
+
+      if (
+        this.prefersLinuxPiper?.() &&
+        !isLinuxPiperVoice(this.selectedVoice)
+      ) {
+        trace.active = false;
+        this.stopped = false;
+        this.paused = true;
+        this.toolbar.setPaused(true);
+        this.toolbar.setStatus(
+          "Paused — Piper voice unavailable; Online fallback blocked"
+        );
+        return;
+      }
+
+      const startBlock = firstBlockNearViewport(this.model?.blocks || []);
+      if (!startBlock) {
+        trace.active = false;
+        this.stop();
+        this.toolbar.setStatus("No readable text found");
+        return;
+      }
+
+      this.currentBlockIndex = startBlock.index;
+      this.currentSegmentIndex = 0;
+      trace.prepMs = now() - startedAt;
+      trace.voiceName = this.selectedVoice?.name || "browser default";
+
+      console.debug(
+        `Edge Natural TTS startup prepared in ${round(trace.prepMs)}ms ` +
+          `(model ${round(trace.modelMs)}ms, extra voice wait ${round(trace.extraVoiceWaitMs)}ms).`
+      );
+
+      if (!this.enabled || this.quitRequested) {
+        trace.active = false;
+        return;
+      }
+
+      if (await this.claimAudioOwnership?.()) {
+        if (!this.enabled || this.quitRequested) {
+          trace.active = false;
+          this.releaseAudioOwnership?.();
+          return;
+        }
+        this.speakCurrentPosition();
+      } else if (this.enabled && !this.quitRequested) {
+        trace.active = false;
+        this.paused = true;
+        this.toolbar.setPaused(true);
+        this.toolbar.setStatus("Paused — audio unavailable");
+      }
+    };
+
+    prototype.handleSpeechStart = function profiledHandleSpeechStart(latencyMs) {
+      const result = originalHandleSpeechStart?.call(this, latencyMs);
+      const trace = this.startupTrace;
+      if (!trace?.active) {
+        return result;
+      }
+
+      trace.active = false;
+      trace.speechStartMs = Number(latencyMs) || 0;
+      trace.totalMs = now() - trace.startedAt;
+      trace.voiceName = this.selectedVoice?.name || trace.voiceName || "browser default";
+
+      const summary = startupSummary(trace);
+      root.__EDGE_TTS_LAST_STARTUP__ = { ...trace, summary };
+      if (this.toolbar?.status) {
+        this.toolbar.status.title = `Reading · ${summary} · ${trace.voiceName}`;
+      }
+      console.info(`Edge Natural TTS startup: ${summary} · ${trace.voiceName}`);
+      return result;
+    };
+
+    return true;
+  }
+
+  return { installStartupFastPath, startupSummary };
+});
