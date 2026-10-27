@@ -1,0 +1,322 @@
+{
+  "schemaVersion": 1,
+  "project": "sguzman/firefox-tts",
+  "purpose": "Offline Firefox Developer Edition text-to-speech port using local CPU-only Piper",
+  "baseline": {
+    "percent": 0,
+    "date": "2026-10-27",
+    "note": "Repository initially contained only LICENSE and .gitignore"
+  },
+  "asOf": "2026-10-27",
+  "completedWeight": 8,
+  "totalWeight": 100,
+  "percent": 8,
+  "roundDelta": 8,
+  "source": {
+    "repo": "sguzman/edge-tts",
+    "branch": "development/linux-piper-v1",
+    "commit": "a568fd55478d14701eaf2b9a835b6618dd9ee95b",
+    "notes": "Source only; Windows/online backends not goals. Browser acceptance not yet established."
+  },
+  "externalEvidence": {
+    "firefoxScriptsLinkCommit": "e11fac830231b6fcdfb9406ebca1cb468cfbbb5e"
+  },
+  "stages": {
+    "Governance": 8,
+    "Core port": 21,
+    "Firefox integration": 31,
+    "User experience": 18,
+    "Verification": 17,
+    "Release": 5
+  },
+  "tasks": [
+    {
+      "id": "G01",
+      "emoji": "🧭",
+      "stage": "Governance",
+      "weight": 2,
+      "title": "Audit pinned Edge source and empty Firefox repository",
+      "acceptance": "Record source commit, relevant directories and known unverified runtime behavior",
+      "status": "done",
+      "evidence": [
+        "Pinned upstream commit a568fd554 and inspected source tree"
+      ]
+    },
+    {
+      "id": "G02",
+      "emoji": "📜",
+      "stage": "Governance",
+      "weight": 2,
+      "title": "Codify stewardship and isolation contract",
+      "acceptance": "AGENTS.md defines source boundaries, user profile protection, no package-manager installs and acceptance requirements",
+      "status": "done",
+      "evidence": [
+        "AGENTS.md in this initial commit"
+      ]
+    },
+    {
+      "id": "G03",
+      "emoji": "🗺️",
+      "stage": "Governance",
+      "weight": 3,
+      "title": "Establish weighted roadmap and machine-readable ledger",
+      "acceptance": "ROADMAP.md and progress.json agree, weights total exactly 100, evidence is listed",
+      "status": "done",
+      "evidence": [
+        "docs/ROADMAP.md and progress.json in this initial commit"
+      ]
+    },
+    {
+      "id": "G04",
+      "emoji": "🔗",
+      "stage": "Governance",
+      "weight": 1,
+      "title": "Link once from firefox-scripts",
+      "acceptance": "One README link exists and is committed; no further work in firefox-scripts",
+      "status": "done",
+      "evidence": [
+        "sguzman/firefox-scripts@e11fac830231b6fcdfb9406ebca1cb468cfbbb5e"
+      ]
+    },
+    {
+      "id": "S01",
+      "emoji": "📥",
+      "stage": "Core port",
+      "weight": 6,
+      "title": "Import curated reader and pronunciation source",
+      "acceptance": "Copied files trace to pinned Edge commit; exclude unused Windows assets and generated binaries",
+      "status": "todo",
+      "evidence": []
+    },
+    {
+      "id": "S02",
+      "emoji": "📖",
+      "stage": "Core port",
+      "weight": 5,
+      "title": "Preserve DOM text model, highlighter and selection mappings",
+      "acceptance": "Unit tests cover multi-block reading, editable exclusion, CSS Highlight mapping, seek",
+      "status": "todo",
+      "evidence": []
+    },
+    {
+      "id": "S03",
+      "emoji": "🧹",
+      "stage": "Core port",
+      "weight": 3,
+      "title": "Remove Edge online and Windows-only playback dependencies",
+      "acceptance": "No active references to Direct Read Aloud, chrome.tts, WIN-NATURAL or Windows host",
+      "status": "todo",
+      "evidence": []
+    },
+    {
+      "id": "S04",
+      "emoji": "🧩",
+      "stage": "Core port",
+      "weight": 4,
+      "title": "Port action-triggered on-demand script and CSS injection",
+      "acceptance": "One action click installs a singleton reader, retry and stop are deterministic",
+      "status": "todo",
+      "evidence": []
+    },
+    {
+      "id": "S05",
+      "emoji": "🛡️",
+      "stage": "Core port",
+      "weight": 3,
+      "title": "Enforce low idle cost and no focus theft",
+      "acceptance": "No automatic page injection, broad observer, composer write or unbounded DOM scan",
+      "status": "todo",
+      "evidence": []
+    },
+    {
+      "id": "F01",
+      "emoji": "🦊",
+      "stage": "Firefox integration",
+      "weight": 5,
+      "title": "Create Firefox MV3 manifest and fixed Gecko ID",
+      "acceptance": "Manifest loads without schema errors in isolated Firefox and declares only justified permissions",
+      "status": "todo",
+      "evidence": []
+    },
+    {
+      "id": "F02",
+      "emoji": "🧠",
+      "stage": "Firefox integration",
+      "weight": 6,
+      "title": "Move orchestration to Firefox background event page",
+      "acceptance": "Messaging, active tab, native port, tab-close cleanup and suspension/restart tested",
+      "status": "todo",
+      "evidence": []
+    },
+    {
+      "id": "F03",
+      "emoji": "🔌",
+      "stage": "Firefox integration",
+      "weight": 6,
+      "title": "Implement dedicated Firefox Native Messaging manifest and installer",
+      "acceptance": "Gecko allowed_extensions, correct per-user path and isolated installation; never modify Edge host",
+      "status": "todo",
+      "evidence": []
+    },
+    {
+      "id": "F04",
+      "emoji": "🐍",
+      "stage": "Firefox integration",
+      "weight": 5,
+      "title": "Reuse Piper safely as CPU-only native backend",
+      "acceptance": "Native hello, enumerate, synthesize and cancel pass; existing voices and files untouched",
+      "status": "todo",
+      "evidence": []
+    },
+    {
+      "id": "F05",
+      "emoji": "🔊",
+      "stage": "Firefox integration",
+      "weight": 7,
+      "title": "Replace Chromium offscreen audio playback and timing",
+      "acceptance": "Firefox-compatible extension-owned media, word events, pause/resume and autoplay recovery tested",
+      "status": "todo",
+      "evidence": []
+    },
+    {
+      "id": "F06",
+      "emoji": "⏯️",
+      "stage": "Firefox integration",
+      "weight": 2,
+      "title": "Restore cross-tab ownership and cancellation",
+      "acceptance": "No stale audio continues on stop, tab switch, extension reload or rapid restart",
+      "status": "todo",
+      "evidence": []
+    },
+    {
+      "id": "U01",
+      "emoji": "🎙️",
+      "stage": "User experience",
+      "weight": 3,
+      "title": "Port Piper catalog, default and preferences",
+      "acceptance": "Voice discovery works; Amy Low default with optional Ryan and other installed voices",
+      "status": "todo",
+      "evidence": []
+    },
+    {
+      "id": "U02",
+      "emoji": "🗣️",
+      "stage": "User experience",
+      "weight": 4,
+      "title": "Port pronunciation projection and live testing",
+      "acceptance": "Rules, previews, import/export, source mapping and sentence boundaries tested",
+      "status": "todo",
+      "evidence": []
+    },
+    {
+      "id": "U03",
+      "emoji": "💾",
+      "stage": "User experience",
+      "weight": 4,
+      "title": "Preserve user pronunciation rules and backups",
+      "acceptance": "Explicit migration/read-only source handling; restore, revision history and failure cases tested",
+      "status": "todo",
+      "evidence": []
+    },
+    {
+      "id": "U04",
+      "emoji": "🎚️",
+      "stage": "User experience",
+      "weight": 3,
+      "title": "Port toolbar, batching and speech controls",
+      "acceptance": "Volume, pitch-preserving speed, sentence pause, seek, highlighting and controls verified",
+      "status": "todo",
+      "evidence": []
+    },
+    {
+      "id": "U05",
+      "emoji": "📝",
+      "stage": "User experience",
+      "weight": 4,
+      "title": "Handle ChatGPT messages and writing blocks safely",
+      "acceptance": "Synthetic and live writing-block extraction verified, without reading composer or stealing focus",
+      "status": "todo",
+      "evidence": []
+    },
+    {
+      "id": "T01",
+      "emoji": "🧪",
+      "stage": "Verification",
+      "weight": 3,
+      "title": "Implement static and unit checks without npm",
+      "acceptance": "Node builtin test and syntax checks green from clean checkout",
+      "status": "todo",
+      "evidence": []
+    },
+    {
+      "id": "T02",
+      "emoji": "📡",
+      "stage": "Verification",
+      "weight": 3,
+      "title": "Test native messaging protocol and failure boundaries",
+      "acceptance": "Synthetic framing, malformed frames, disconnects, cancellation and timeouts pass",
+      "status": "todo",
+      "evidence": []
+    },
+    {
+      "id": "T03",
+      "emoji": "🎼",
+      "stage": "Verification",
+      "weight": 4,
+      "title": "Stress playback timing and lifecycle",
+      "acceptance": "Long text, rapid play/pause, no leaks, suspended contexts and reload failures exercised",
+      "status": "todo",
+      "evidence": []
+    },
+    {
+      "id": "T04",
+      "emoji": "🧫",
+      "stage": "Verification",
+      "weight": 4,
+      "title": "Automate disposable Firefox end-to-end tests",
+      "acceptance": "Headless isolated Firefox tests for injection, reader, settings and native mock; no real profile access",
+      "status": "todo",
+      "evidence": []
+    },
+    {
+      "id": "T05",
+      "emoji": "🔒",
+      "stage": "Verification",
+      "weight": 3,
+      "title": "Audit privacy, permissions, resource usage and license",
+      "acceptance": "No telemetry; minimum permissions; no private QA data committed; third-party notices correct",
+      "status": "todo",
+      "evidence": []
+    },
+    {
+      "id": "R01",
+      "emoji": "📘",
+      "stage": "Release",
+      "weight": 2,
+      "title": "Write installation, migration and recovery instructions",
+      "acceptance": "Linux-only instructions tested on disposable data directories and no sudo requirement",
+      "status": "todo",
+      "evidence": []
+    },
+    {
+      "id": "R02",
+      "emoji": "📦",
+      "stage": "Release",
+      "weight": 1,
+      "title": "Produce reproducible unsigned/signed-ready extension packaging",
+      "acceptance": "Deterministic XPI artifact and content hashes documented; no paid service",
+      "status": "todo",
+      "evidence": []
+    },
+    {
+      "id": "R03",
+      "emoji": "✅",
+      "stage": "Release",
+      "weight": 2,
+      "title": "Real Firefox Developer Edition user acceptance",
+      "acceptance": "Exact candidate loaded in real browser and user confirms speech, quit, settings and no focus theft",
+      "status": "todo",
+      "evidence": []
+    }
+  ]
+}
