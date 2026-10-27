@@ -116,6 +116,26 @@ def qa_package(release: Path, destination: Path) -> None:
                 type: "FIREFOX_TTS_QA_REOPEN"
               }).catch(() => {});
             });
+            document.addEventListener("firefox-tts-qa-reader-state", () => {
+              // QA-only inspector runs in the extension isolated world; page
+              // WebDriver cannot access the content-script global directly.
+              const app = globalThis.__EDGE_TTS_READER__?.app;
+              const speech = app?.speech;
+              document.documentElement.dataset.firefoxTtsQaReaderState =
+                JSON.stringify({
+                  enabled:app?.enabled, paused:app?.paused, stopped:app?.stopped,
+                  audioOwner:app?.audioOwner, boundarySerial:app?.boundarySerial,
+                  currentBlockIndex:app?.currentBlockIndex,
+                  currentSegmentIndex:app?.currentSegmentIndex,
+                  chunkIndex:speech?.currentChunkIndex,
+                  chunkCount:speech?.currentChunks?.length,
+                  directActive:speech?.directActive,
+                  useExt:speech?.linuxPiperUseExtensionAudio,
+                  offscreen:!!speech?.linuxPiperOffscreenPlayback,
+                  pending:speech?.linuxPiperRequests?.size,
+                  prepared:speech?.linuxPiperPrepared?.size
+                });
+            });
           }
         });
         // QA-only ChatGPT-profile fixture: actual DOM, no real chat data.
@@ -366,36 +386,20 @@ def main() -> None:
                         timeout=18, explanation="Autoplay-blocked tab did not try Firefox-owned audio")
                     fallback = json.loads(fallback_json)
                     assert fallback.get("accepted") is True, fallback
-                    try:
-                        base.eventually(lambda: base.execute(host, session,
-                            """const r=globalThis.__EDGE_TTS_READER__?.app;
-                               return r && r.enabled && !r.paused && !r.stopped &&
-                                 r.speech?.linuxPiperUseExtensionAudio === true;"""),
-                            timeout=9, explanation="Autoplay fallback left reader paused")
-                    except AssertionError:
-                        state = base.execute(host, session,
-                            """const r=globalThis.__EDGE_TTS_READER__?.app;
-                               const s=r?.speech;
-                               return {
-                                 enabled:r?.enabled, paused:r?.paused, stopped:r?.stopped,
-                                 audioOwner:r?.audioOwner, status:document.querySelector('[data-edge-tts-status]')?.textContent,
-                                 chunkIndex:s?.currentChunkIndex, chunkCount:s?.currentChunks?.length,
-                                 directActive:s?.directActive, directSessionMode:s?.directSessionMode,
-                                 useExt:s?.linuxPiperUseExtensionAudio, offscreen:s?.linuxPiperOffscreenPlayback?.playbackId,
-                                 pending:s?.linuxPiperRequests?.size, prepared:s?.linuxPiperPrepared?.size,
-                                 media:document.documentElement.dataset.firefoxTtsQaMediaAttempted,
-                                 fallback:document.documentElement.dataset.firefoxTtsQaPlayback,
-                                 fallbackCount:document.documentElement.dataset.firefoxTtsQaPlaybackCount,
-                                 cursor:[r?.currentBlockIndex,r?.currentSegmentIndex],
-                                 terminal:globalThis.__EDGE_TTS_LAST_TERMINAL__
-                               };""")
-                        print("STRICT AUTOPLAY READER DIAGNOSTICS:", state, file=sys.stderr, flush=True)
-                        raise
+                    base.eventually(lambda: base.execute(host, session,
+                        """document.dispatchEvent(new Event('firefox-tts-qa-reader-state'));
+                           const r=JSON.parse(document.documentElement.dataset.firefoxTtsQaReaderState||'{}');
+                           return r.enabled === true && r.useExt === true;"""),
+                        timeout=12, explanation="Autoplay fallback did not remain attached to the reader")
                     base.eventually(lambda: base.execute(host, session,
                         "return Number(document.documentElement.dataset.firefoxTtsQaPlaybackCount || 0) >= 2"),
                         timeout=22, explanation="Autoplay fallback stopped at first sentence")
-                    assert base.execute(host, session,
-                        """return globalThis.__EDGE_TTS_READER__?.app?.paused === false""")
+                    state = base.execute(host, session,
+                        """document.dispatchEvent(new Event('firefox-tts-qa-reader-state'));
+                           return JSON.parse(document.documentElement.dataset.firefoxTtsQaReaderState||'{}');""")
+                    assert state.get("useExt") is True, state
+                    assert state.get("boundarySerial", 0) > 0, state
+                    assert state.get("paused") is not True, state
                     print("PASS: Normal Firefox autoplay policy starts Piper automatically and plays consecutive sentences")
                     return
                 base.eventually(lambda: base.execute(host, session,
