@@ -65,3 +65,26 @@ Previous Firefox data is preserved under `pronunciation-history/`. Edge's
 original configuration is only read, never modified. The migration never
 touches installed ONNX voice models or either browser profile. Tests run these
 paths in disposable XDG directories.
+
+### Roll back a migration
+
+A replacement archives the previous Firefox version under
+`~/.local/share/firefox-tts/pronunciation-history/`. Only files named
+`before-edge-import-<timestamp>-<hash>.json` or
+`before-restore-<timestamp>-<hash>.json` in that private folder can be used.
+
+Inspect the dry-run plan (substitute an actual archive basename):
+
+```bash
+python3 native/linux-piper/migrate-pronunciation.py --restore 'before-edge-import-1234567890-012345abcdef.json'
+```
+
+Explicitly restore the chosen revision:
+
+```bash
+python3 native/linux-piper/migrate-pronunciation.py --apply --restore 'before-edge-import-1234567890-012345abcdef.json'
+```
+
+The current Firefox configuration is archived again before it is replaced.
+Neither operation modifies the original Edge configuration. Restoration
+rejects directory traversal, symlinked destinations and invalid JSON.
