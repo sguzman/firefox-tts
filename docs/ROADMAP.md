@@ -17,7 +17,7 @@ Target: a Firefox Developer Edition-first, Linux-only, offline Piper read-aloud 
 
 Progress = sum of weights of work items with **verified acceptance evidence** / 100. Weights are frozen, include tests and user acceptance, and are not estimates of elapsed time. `roundDelta` = new percent minus previous reported percent. Unknown, partial, untested or blocked work remains **0 credit** for its item, even when code is checked in. Fixes within existing tasks do not introduce arbitrary new work or inflate progress. Any necessary scope change needs a recorded rationale and explicit weight migration that preserves the already-reported baseline. Ledger: [`progress.json`](../progress.json).
 
-Initial baseline: 0% (license + ignore only). Current extension-owned Firefox media round: **89% (+7 points since 82%)**. Browser accepted a QA-only synthetic WAV fallback after forced page audio failure and autoplay retry/lifecycle mocks pass. Physical audio with installed Piper models and live ChatGPT Writing Blocks remain open.
+Initial baseline: 0% (license + ignore only). Current audio-clock/preflight refinement: **89% (+0 points from prior 89%)**. In isolated real Gecko, QA-only mock-sink output decoded a synthetic Piper WAV and advanced the actual media clock; a read-only CPU voice preflight now has passing fake-host tests. Real installed ONNX synthesis, authenticated ChatGPT Writing Blocks, and end-user acceptance remain unverified.
 
 | Stage | Fixed weight |
 | --- | ---: |

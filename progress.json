@@ -11,7 +11,7 @@
   "completedWeight": 89,
   "totalWeight": 100,
   "percent": 89,
-  "roundDelta": 7,
+  "roundDelta": 0,
   "source": {
     "repo": "sguzman/edge-tts",
     "branch": "development/linux-piper-v1",
@@ -198,7 +198,12 @@
       "title": "Reuse Piper safely as CPU-only native backend",
       "acceptance": "Native hello, enumerate, synthesize and cancel pass; existing voices and files untouched",
       "status": "todo",
-      "evidence": []
+      "evidence": [],
+      "partialEvidence": [
+        "native/linux-piper/self-test-cpu.sh validates existing CPU-only Piper interpreter and voice paths before attempting non-mutating ONNX self-test",
+        "tests/test_fake_piper_protocol.py validates preflight, framed Native Messaging synthesis/cancel and voice model immutability with a disposable fake Piper environment; CI run 40552270990",
+        "PENDING: CPU Piper inference with a genuine installed .onnx voice in the user's environment is not yet observed. Keep F04 uncredited."
+      ]
     },
     {
       "id": "F05",
@@ -212,7 +217,8 @@
         "src/background/audio.js implements Firefox event-page-owned WAV playback, media-clock word boundaries, pause/resume/stop, playbackRate/volume, sentence gap and blob cleanup without chrome.offscreen",
         "Disposable real Firefox QA-only localhost test forced a synthetic tab-media failure and verified that extension-owned background Audio.play() accepted a fake Piper WAV; run 40550822043 all three jobs green",
         "tests/audio-stress.test.js covers long boundary lists, 150 rapid sessions, multiple pause/resumes, timer and object URL cleanup, autoplay rejection and explicit retry; run 40550995374 all three jobs green",
-        "Real installed ONNX voices and audible real-world media output remain R03/F04 acceptance, not claimed here"
+        "Real installed ONNX voices and audible real-world media output remain R03/F04 acceptance, not claimed here",
+        "Gecko mock audio sink: isolated Firefox MediaSink advanced the real audio element currentTime past 0.12s while playing a 0.8-second synthetically generated Piper WAV, run 40552270990. Headless mock sink does not confirm physical sound."
       ]
     },
     {
@@ -293,7 +299,11 @@
       "title": "Handle ChatGPT messages and writing blocks safely",
       "acceptance": "Synthetic and live writing-block extraction verified, without reading composer or stealing focus",
       "status": "todo",
-      "evidence": []
+      "evidence": [],
+      "partialEvidence": [
+        "QA-only Gecko injected a synthetic assistant turn and a Writing Block styled like the live page; text extracted while editor and status excluded",
+        "PENDING: actual authenticated ChatGPT Writing Block reading and focus behavior remain unverified; no private session accessed"
+      ]
     },
     {
       "id": "T01",
@@ -403,8 +413,8 @@
       "evidence": []
     }
   ],
-  "previousPercent": 82,
-  "round": "firefox-background-media-1",
+  "previousPercent": 89,
+  "round": "real-firefox-media-clock-and-cpu-preflight-1",
   "stageCompleted": {
     "Governance": 8,
     "Core port": 21,
@@ -414,22 +424,22 @@
     "Release": 3
   },
   "lastGreenCI": {
-    "runId": 40550995374,
-    "headSha": "59ff57c69b74149f9cca59e9cd595d68a214acc5",
-    "note": "Three CI jobs passed. Browser accepted synthetic WAV fallback after forced page-media error; mock tests cover event timing, rejection and retry; not proof of physical audio."
+    "runId": 40552270990,
+    "headSha": "04dc9063f2a9fc06b5229db5f9aa9f37ebadc041",
+    "note": "3 jobs green. QA-only Gecko using mock audio backend decoded and advanced real media clock of synthetic Piper WAV. CPU-only preflight tested with disposable fake Piper. Real ONNX speech and physical playback not yet accepted."
   },
   "blockers": [
     {
       "id": "F04",
-      "detail": "Real installed CPU Piper ONNX inference has not been executed on the user's actual voice assets."
+      "detail": "Actual pre-existing CPU Piper ONNX model synthesis preflight requires access to real installed voice/runtime; only fake model tested remotely."
     },
     {
       "id": "U05",
-      "detail": "Real Firefox synthetic Writing Block extraction passed, but the actual authenticated ChatGPT Writing Block was not tested."
+      "detail": "Real Firefox synthetic ChatGPT Writing Block safe extraction passes; no access to authenticated live ChatGPT Writing Block."
     },
     {
       "id": "R03",
-      "detail": "Exact-candidate Firefox Developer Edition user acceptance including audible speech, pauses, native restarts and focus safety is outstanding."
+      "detail": "User acceptance of exact Firefox Developer Edition candidate, real voice speech, settings and no focus theft still outstanding."
     }
   ],
   "lastBrowserEvidence": {
