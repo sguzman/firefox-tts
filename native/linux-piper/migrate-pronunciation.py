@@ -74,7 +74,7 @@ def main(argv: list[str] | None = None) -> int:
         # traversals, symlinks and foreign destinations.
         basename = args.restore
         if not re.fullmatch(
-            r"before-(?:edge-import|restore)-[0-9]+-[0-9a-f]{12}\\.json",
+            r"before-(?:edge-import|restore)-[0-9]+-[0-9a-f]{12}\.json",
             basename,
         ):
             print("Unrecognized backup filename", file=sys.stderr)
