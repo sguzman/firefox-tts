@@ -307,8 +307,8 @@ def qa_package(release: Path, destination: Path) -> None:
 
 def install_fake_native_host(root: Path) -> None:
     """Register a fake Piper on isolated HOME; never run a real model."""
-    short_audio = os.environ.get("FIREFOX_TTS_QA_AUTOPLAY") == "1" or
-        os.environ.get("FIREFOX_TTS_QA_FAST") == "1"
+    short_audio = (os.environ.get("FIREFOX_TTS_QA_AUTOPLAY") == "1" or
+                   os.environ.get("FIREFOX_TTS_QA_FAST") == "1")
     (root / "piper.py").write_text(
         FAKE_PIPER.replace('count = 25 if "cancel" in text else 4',
                            'count = 25 if "cancel" in text else ' +
