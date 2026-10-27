@@ -1850,7 +1850,13 @@
       this._clearLinuxPiperProgressWatchdog();
       this.linuxPiperCurrentPrepared = null;
       this._stopLinuxPiperOffscreenPlayback();
-      if (this.directSessionMode) {
+      // Stop the *actual* tab-owned HTMLAudioElement before forgetting the
+      // session. super.cancel()/super.abandon() only clean Web Speech state;
+      // without this a Quit detaches the HUD while Piper WAV keeps playing.
+      // This is authoritative even when another reader owns browser speech.
+      const wasDirectSession = this.directSessionMode;
+      this._resetDirectState({ keepMode: false });
+      if (wasDirectSession) {
         this._stopLinuxPiperNativeWork();
         for (const request of this.linuxPiperRequests.values()) {
           if (request.timeoutId) root.clearTimeout(request.timeoutId);
@@ -1870,7 +1876,13 @@
       this._clearLinuxPiperProgressWatchdog();
       this.linuxPiperCurrentPrepared = null;
       this._stopLinuxPiperOffscreenPlayback();
-      if (this.directSessionMode) {
+      // Stop the *actual* tab-owned HTMLAudioElement before forgetting the
+      // session. super.cancel()/super.abandon() only clean Web Speech state;
+      // without this a Quit detaches the HUD while Piper WAV keeps playing.
+      // This is authoritative even when another reader owns browser speech.
+      const wasDirectSession = this.directSessionMode;
+      this._resetDirectState({ keepMode: false });
+      if (wasDirectSession) {
         this._stopLinuxPiperNativeWork();
         for (const request of this.linuxPiperRequests.values()) {
           if (request.timeoutId) root.clearTimeout(request.timeoutId);
