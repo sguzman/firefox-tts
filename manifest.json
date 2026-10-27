@@ -1,0 +1,35 @@
+{
+  "manifest_version": 3,
+  "name": "Firefox TTS",
+  "version": "0.1.0",
+  "description": "Local, CPU-only Piper read-aloud for Firefox. Development build.",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage",
+    "nativeMessaging"
+  ],
+  "action": {
+    "default_title": "Toggle Firefox TTS reader"
+  },
+  "background": {
+    "scripts": [
+      "src/background/action.js"
+    ]
+  },
+  "options_ui": {
+    "page": "src/options/pronunciation.html",
+    "open_in_tab": true
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "firefox-tts@sguzman.dev",
+      "strict_min_version": "128.0",
+      "data_collection_permissions": {
+        "required": [
+          "none"
+        ]
+      }
+    }
+  }
+}
