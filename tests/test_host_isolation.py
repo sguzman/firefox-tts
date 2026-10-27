@@ -74,6 +74,23 @@ class PiperIsolationTest(unittest.TestCase):
         self.assertEqual(self.edge_sentinel.read_text(), '{"edge": "untouched"}\n')
         self.assertEqual(len(list(self.voices.glob("*.onnx"))), 1)
 
+    def test_native_voice_catalog_enumerates_multiple_installed_onnx_models(self):
+        for voice_id in ("en_US-amy-low", "en_US-ryan-high", "en_US-hfc_female-medium"):
+            (self.voices / (voice_id + ".onnx")).write_bytes(b"synthetic-model-not-loaded")
+            (self.voices / (voice_id + ".onnx.json")).write_text(
+                json.dumps({"language": {"code": "en_US"}}), encoding="utf-8")
+        with patch.dict(os.environ, self.env, clear=True):
+            spec = importlib.util.spec_from_file_location("firefox_tts_catalog_host", HOST)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            voices = module.list_voices()
+        ids = {voice["id"] for voice in voices}
+        self.assertTrue({"en_US-amy-low", "en_US-ryan-high", "en_US-hfc_female-medium"} <= ids)
+        self.assertTrue(all(voice["lang"] == "en-US" for voice in voices))
+        self.assertTrue(all(voice["modelPath"].startswith(str(self.voices))
+                            for voice in voices))
+        self.assertFalse((self.voices / "cache").exists(), "catalog must not synthesize")
+
     def test_stdlib_native_handshake_voices_and_backup_roundtrip(self):
         messages = [
             {"type": "hello", "protocol": 1},
