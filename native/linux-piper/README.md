@@ -36,3 +36,32 @@ pronunciation data**:
 Neither script requires sudo, touches an existing Firefox profile, or writes
 to the Edge Native Messaging path. Never run the installer as an automatic
 build or test step.
+
+## One-time pronunciation migration (opt-in)
+
+Run **dry-run first**. It checks the existing Edge configuration, prints its
+revision and SHA-256, and does not modify any files or expose the pronunciation
+rules in logs:
+
+```bash
+python3 native/linux-piper/migrate-pronunciation.py
+```
+
+To copy it into Firefox's separate writable data directory:
+
+```bash
+python3 native/linux-piper/migrate-pronunciation.py --apply
+```
+
+If the Firefox configuration already exists, this command **refuses** to
+overwrite it. After reviewing the situation, explicitly archive that previous
+Firefox revision and replace it with the Edge source:
+
+```bash
+python3 native/linux-piper/migrate-pronunciation.py --apply --replace
+```
+
+Previous Firefox data is preserved under `pronunciation-history/`. Edge's
+original configuration is only read, never modified. The migration never
+touches installed ONNX voice models or either browser profile. Tests run these
+paths in disposable XDG directories.
