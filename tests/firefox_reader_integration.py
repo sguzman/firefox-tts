@@ -37,12 +37,6 @@ def qa_package(release: Path, destination: Path) -> None:
       if (change.status !== "complete" ||
           !tab.url?.startsWith("http://127.0.0.1:")) return;
       void (async () => {
-        if (tab.url.includes("qaOptions=1")) {
-          // QA-only trigger: Firefox disallows direct moz-extension://
-          // navigation via WebDriver. Use the supported browser API.
-          await browser.runtime.openOptionsPage();
-          return;
-        }
         if (!tab.url.includes("qaFallback=1")) {
           // Observe real Gecko media events without changing play semantics.
           // This probe exists only in the QA-only localhost package.
@@ -93,6 +87,18 @@ def qa_package(release: Path, destination: Path) -> None:
         await browser.scripting.executeScript({ target: { tabId },
           files: FILE_LIST });
         await browser.tabs.sendMessage(tabId, { type: "EDGE_TTS_TOGGLE_V2" });
+        // The event is QA-only. It relays a test-triggered request from an
+        // ordinary page into the extension, never reading page content.
+        await browser.scripting.executeScript({
+          target: { tabId },
+          func: () => {
+            document.addEventListener("firefox-tts-qa-open-options", () => {
+              void browser.runtime.sendMessage({
+                type: "FIREFOX_TTS_QA_OPEN_OPTIONS"
+              }).catch(() => {});
+            });
+          }
+        });
         // QA-only ChatGPT-profile fixture: actual DOM, no real chat data.
         await browser.scripting.executeScript({
           target: { tabId },
@@ -153,6 +159,9 @@ def qa_package(release: Path, destination: Path) -> None:
     }
     """
     bridge += """\nbrowser.runtime.onMessage.addListener((message) => {
+      if (message?.type === "FIREFOX_TTS_QA_OPEN_OPTIONS") {
+        return browser.runtime.openOptionsPage().then(() => ({ accepted: true }));
+      }
       if (message?.type !== "FIREFOX_TTS_QA_OPTIONS_REPORT") return false;
       return browser.tabs.query({ url: "http://127.0.0.1/*" }).then(async tabs => {
         for (const tab of tabs) {
@@ -390,12 +399,11 @@ def main() -> None:
                 assert options_url.startswith("moz-extension://"), options_url
                 original_window = base.webdriver(host, session, "GET", "window")
                 original_handles = set(base.webdriver(host, session, "GET", "window/handles"))
-                opened = base.webdriver(host, session, "POST", "window/new", {"type": "tab"})
-                base.webdriver(host, session, "POST", "url",
-                               {"url": f"http://127.0.0.1:{server.server_address[1]}/index.html?qaOptions=1"})
+                base.execute(host, session,
+                    'document.dispatchEvent(new Event("firefox-tts-qa-open-options"))')
                 options_handles = base.eventually(
                     lambda: list(set(base.webdriver(host, session, "GET", "window/handles"))
-                                 - original_handles - {opened["handle"]}),
+                                 - original_handles),
                     timeout=12, explanation="Firefox browser API did not open extension options")
                 options_window = options_handles[0]
                 # Marionette cannot inspect privileged moz-extension:// tabs.
