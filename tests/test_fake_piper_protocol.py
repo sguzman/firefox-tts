@@ -12,6 +12,7 @@ import time
 import unittest
 import wave
 import io
+import importlib.util
 
 HOST = Path(__file__).resolve().parents[1] / "native/linux-piper/linux_piper_host.py"
 FAKE_PIPER = '''
@@ -136,6 +137,13 @@ class FakePiperProtocolTest(unittest.TestCase):
             self.assertEqual(wav.getnchannels(), 1)
             self.assertEqual(wav.getsampwidth(), 2)
             self.assertGreater(wav.getnframes(), 0)
+            raw_pcm = wav.readframes(wav.getnframes())
+            self.assertEqual(struct.unpack_from("<h", raw_pcm, 0)[0], 0,
+                             "fade-in begins at silence")
+            self.assertEqual(struct.unpack_from("<h", raw_pcm, len(raw_pcm)-2)[0], 0,
+                             "fade-out ends at silence")
+            self.assertEqual(struct.unpack_from("<h", raw_pcm, len(raw_pcm)//2)[0], 1,
+                             "middle samples are unmodified")
         self.assertEqual((self.voices / "en_US-amy-low.onnx").read_bytes(), self.voice_bytes)
 
     def test_explicit_cpu_self_check_uses_existing_fake_model_read_only(self):

@@ -42,7 +42,7 @@ The installer rejects `onnxruntime-gpu` and performs no `pip` installation. It n
 ./native/linux-piper/install-native-host.sh
 ~~~
 
-Only two Firefox-specific artifacts are installed: a copied Python source/launcher under `$XDG_DATA_HOME/firefox-tts/runtime/linux-piper/` and a native host manifest under `~/.mozilla/native-messaging-hosts/com.sguzman.firefox_tts.linux_piper.json`.
+Only two Firefox-specific artifacts are installed: a copied Python source/launcher under `$XDG_DATA_HOME/firefox-tts/runtime/linux-piper/` and a native host manifest under `~/.mozilla/native-messaging-hosts/com.sguzman.firefox_tts.linux_piper.json`. **When the native Python source changes, run this installer again after updating the repository**; reloading the extension alone does not update the separate installed host copy.
 
 Its allowed extension ID is `firefox-tts@sguzman.dev` using `allowed_extensions`. It never writes Chromium `allowed_origins` or any Edge browser profile data. Repeated installation is covered by disposable-home automated tests.
 

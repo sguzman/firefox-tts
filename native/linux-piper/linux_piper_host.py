@@ -296,6 +296,43 @@ def approximate_boundaries(text: str, duration_ms: float) -> list[dict[str, Any]
     return boundaries
 
 
+# Separate sentence requests produce separate WAVs, and nonzero PCM samples
+# at a file boundary can make an audible click when the media element changes.
+# Fade only the first/last 12 ms of each finished utterance. This operates on
+# the temporary synthesized bytearray, never the ONNX model or its settings.
+# It preserves PCM length, sample rate, channel layout and word timings.
+PCM_EDGE_FADE_MS = 12
+
+
+def taper_pcm_edges(
+    pcm: bytearray,
+    sample_rate: int,
+    sample_width: int,
+    channels: int,
+    fade_ms: int = PCM_EDGE_FADE_MS,
+) -> None:
+    """Apply short symmetric linear ramps to little-endian 16-bit Piper PCM."""
+    if sample_width != 2 or sample_rate <= 0 or channels <= 0 or fade_ms <= 0:
+        return
+    frame_bytes = 2 * channels
+    if len(pcm) % frame_bytes:
+        raise ValueError("Piper returned incomplete PCM frames")
+    frame_count = len(pcm) // frame_bytes
+    if frame_count < 2:
+        return
+
+    edge_frames = min(frame_count // 2, max(2, round(sample_rate * fade_ms / 1000)))
+    denominator = max(1, edge_frames - 1)
+    for edge_frame in range(edge_frames):
+        gain = edge_frame / denominator
+        for frame in (edge_frame, frame_count - 1 - edge_frame):
+            offset = frame * frame_bytes
+            for channel in range(channels):
+                sample_offset = offset + channel * 2
+                sample = struct.unpack_from("<h", pcm, sample_offset)[0]
+                struct.pack_into("<h", pcm, sample_offset, round(sample * gain))
+
+
 def synthesize_worker(
     request_id: str,
     voice_id: str,
@@ -330,6 +367,7 @@ def synthesize_worker(
         if not pcm or not sample_rate or not sample_width or not channels:
             raise RuntimeError("Piper produced no audio")
 
+        taper_pcm_edges(pcm, sample_rate, sample_width, channels)
         frames = len(pcm) / (sample_width * channels)
         duration_ms = (frames / sample_rate) * 1000.0
 

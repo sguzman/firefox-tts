@@ -19,12 +19,21 @@ adopts the Edge writable configuration path, even if its voice directory
 points into that application. `FIREFOX_TTS_DATA_HOME` can explicitly select
 the new app's writable root.
 
-When the runtime/manifest code has passed protocol and disposable Firefox QA,
-the explicit install command will be:
+To install or refresh the Firefox-owned native host source, explicitly run:
 
 ```bash
 ./native/linux-piper/install-native-host.sh
 ```
+
+The installer also refreshes the separately copied Python native host after
+source updates. **A Git pull alone does not update the installed host**, and a
+Firefox temporary-add-on reload does not copy native Python code. Restart or
+reactivate the reader after explicitly re-running the installer.
+
+Native audio emitted for each utterance now receives a short (12 ms) PCM
+fade-in/fade-out to suppress nonzero sample discontinuities between sentence
+WAVs. This only changes a temporary synthesized PCM buffer, preserving
+timestamps, word alignment, voice models, and all original audio assets.
 
 To unregister the Firefox host while **preserving voice models, venvs and
 pronunciation data**:
