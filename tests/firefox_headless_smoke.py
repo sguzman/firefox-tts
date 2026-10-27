@@ -93,13 +93,16 @@ def main() -> None:
         xpi = home / "extension.xpi"
         subprocess.run([sys.executable, str(ROOT / "tools/build_xpi.py"),
                         "--output", str(xpi)], check=True)
-        # Geckodriver does not allow -remote-allow-system-access as a
-        # moz:firefoxOptions argument. Use a disposable launcher confined to
-        # this synthetic CI profile to inspect/click Firefox's real toolbar.
-        firefox_binary = shutil.which("firefox")
-        launcher = home / "firefox-qa-launcher"
-        launcher.write_text('#!/bin/sh\nexec ' + firefox_binary + ' -remote-allow-system-access "$@"\n')
-        launcher.chmod(0o700)
+        experimental_action = os.environ.get("FIREFOX_TTS_QA_ACTION") == "1"
+        options = {"args": ["-headless"]}
+        if experimental_action:
+            # Only experimental QA opts into privileged chrome inspection.
+            launcher = home / "firefox-qa-launcher"
+            launcher.write_text('#!/bin/sh\nexec ' + shutil.which("firefox") +
+                                ' -remote-allow-system-access "$@"\n')
+            launcher.chmod(0o700)
+            options["binary"] = str(launcher)
+
         os.environ["HOME"] = str(home)
         os.environ["XDG_CONFIG_HOME"] = str(home / ".config")
         os.environ["XDG_DATA_HOME"] = str(home / ".local/share")
@@ -121,7 +124,7 @@ def main() -> None:
                            timeout=15, explanation="Geckodriver never became ready")
                 capabilities = {"capabilities": {"alwaysMatch": {
                     "browserName": "firefox",
-                    "moz:firefoxOptions": {"binary": str(launcher), "args": ["-headless"]},
+                    "moz:firefoxOptions": options,
                     "acceptInsecureCerts": False
                 }}}
                 create = request(driver_base + "/session", "POST", capabilities, timeout=35)
@@ -138,7 +141,12 @@ def main() -> None:
                 webdriver(driver_base, session, "POST", "url", {"url": fixture_url})
                 assert execute(driver_base, session, "return document.title") == "Firefox TTS synthetic fixture"
                 assert execute(driver_base, session, "return document.querySelector('#edge-tts-toolbar') === null")
-                print("PASS: No passive DOM injection before user shortcut")
+                print("PASS: No passive DOM injection before user action")
+                if not experimental_action:
+                    print("SKIP: Reader activation/audio integration is not verified by this smoke.")
+                    server.shutdown()
+                    server.server_close()
+                    return
 
                 execute(driver_base, session,
                         "window.__ttsQaKeys=[]; window.addEventListener('keydown', e=>window.__ttsQaKeys.push([e.key,e.altKey,e.shiftKey,e.ctrlKey]),true); document.querySelector('#editor').focus(); return document.activeElement.id")
