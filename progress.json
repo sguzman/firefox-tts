@@ -8,10 +8,10 @@
     "note": "Repository initially contained only LICENSE and .gitignore"
   },
   "asOf": "2026-10-27",
-  "completedWeight": 33,
+  "completedWeight": 41,
   "totalWeight": 100,
-  "percent": 33,
-  "roundDelta": 6,
+  "percent": 41,
+  "roundDelta": 8,
   "source": {
     "repo": "sguzman/edge-tts",
     "branch": "development/linux-piper-v1",
@@ -99,8 +99,12 @@
       "weight": 5,
       "title": "Preserve DOM text model, highlighter and selection mappings",
       "acceptance": "Unit tests cover multi-block reading, editable exclusion, CSS Highlight mapping, seek",
-      "status": "todo",
-      "evidence": []
+      "status": "done",
+      "evidence": [
+        "tests/text-model.test.js, tests/multiblock-provenance.test.js: source offsets, multi-block batching, cursor relocation and writing-block predicate",
+        "tests/highlight-seek.test.js: CSS Highlight DOM identity, detached/replaced node handling and editable click-to-seek suppression",
+        "GitHub Actions run 40542199945 green at bdad7c12419ce1e7848c51ad8cbca5b43aa4cc93"
+      ]
     },
     {
       "id": "S03",
@@ -137,8 +141,12 @@
       "weight": 3,
       "title": "Enforce low idle cost and no focus theft",
       "acceptance": "No automatic page injection, broad observer, composer write or unbounded DOM scan",
-      "status": "todo",
-      "evidence": []
+      "status": "done",
+      "evidence": [
+        "manifest.json has no content_scripts or host_permissions; injection occurs only after action click",
+        "Reader observeModelMutations is no-op (no document.body MutationObserver), on-demand click-to-seek and no auto-focus in content bootstrap",
+        "tests/idle-safety.test.js and tests/highlight-seek.test.js green at run 40542199945; no actual browser performance claim"
+      ]
     },
     {
       "id": "F01",
@@ -342,19 +350,19 @@
       "evidence": []
     }
   ],
-  "previousPercent": 27,
-  "round": "piper-only-protocol-1",
+  "previousPercent": 33,
+  "round": "dom-model-idle-1",
   "stageCompleted": {
     "Governance": 8,
-    "Core port": 13,
+    "Core port": 21,
     "Firefox integration": 6,
     "User experience": 0,
     "Verification": 6,
     "Release": 0
   },
   "lastGreenCI": {
-    "runId": 40528936546,
-    "headSha": "807ceee6899fe93254daab12d1916b3b612b5dbc",
-    "note": "Synthetic Node and Python unit/integration tests; not real Firefox/Piper synthesis"
+    "runId": 40542199945,
+    "headSha": "bdad7c12419ce1e7848c51ad8cbca5b43aa4cc93",
+    "note": "Unit tests, synthetic DOM, stdlib native isolation. Does not establish real Firefox acceptance."
   }
 }

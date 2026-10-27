@@ -17,7 +17,7 @@ Target: a Firefox Developer Edition-first, Linux-only, offline Piper read-aloud 
 
 Progress = sum of weights of work items with **verified acceptance evidence** / 100. Weights are frozen, include tests and user acceptance, and are not estimates of elapsed time. `roundDelta` = new percent minus previous reported percent. Unknown, partial, untested or blocked work remains **0 credit** for its item, even when code is checked in. Fixes within existing tasks do not introduce arbitrary new work or inflate progress. Any necessary scope change needs a recorded rationale and explicit weight migration that preserves the already-reported baseline. Ledger: [`progress.json`](../progress.json).
 
-Initial baseline: 0% (license + ignore only). Current Piper-only/protocol round: **33% (+6 points since the previous 27% report)**. Source backend filtering and native protocol failure boundaries are covered by passing synthetic tests; real Firefox audio and real model synthesis remain unverified.
+Initial baseline: 0% (license + ignore only). Current DOM/idle-safety round: **41% (+8 points since the previous 33% report)**. Multi-block text provenance, CSS highlighting, safe click-seek, and no-idle-injection tests pass; real Firefox playback and model synthesis remain unverified.
 
 | Stage | Fixed weight |
 | --- | ---: |
@@ -41,10 +41,10 @@ Initial baseline: 0% (license + ignore only). Current Piper-only/protocol round:
 ### Core port — 21%
 
 - [x] **📥 S01** · **6%** — Import curated reader and pronunciation source. Acceptance: Copied files trace to pinned Edge commit; exclude unused Windows assets and generated binaries.
-- [ ] **📖 S02** · **5%** — Preserve DOM text model, highlighter and selection mappings. Acceptance: Unit tests cover multi-block reading, editable exclusion, CSS Highlight mapping, seek.
+- [x] **📖 S02** · **5%** — Preserve DOM text model, highlighter and selection mappings. Acceptance: Unit tests cover multi-block reading, editable exclusion, CSS Highlight mapping, seek.
 - [x] **🧹 S03** · **3%** — Remove Edge online and Windows-only playback dependencies. Acceptance: No active references to Direct Read Aloud, chrome.tts, WIN-NATURAL or Windows host.
 - [x] **🧩 S04** · **4%** — Port action-triggered on-demand script and CSS injection. Acceptance: One action click installs a singleton reader, retry and stop are deterministic.
-- [ ] **🛡️ S05** · **3%** — Enforce low idle cost and no focus theft. Acceptance: No automatic page injection, broad observer, composer write or unbounded DOM scan.
+- [x] **🛡️ S05** · **3%** — Enforce low idle cost and no focus theft. Acceptance: No automatic page injection, broad observer, composer write or unbounded DOM scan.
 
 ### Firefox integration — 31%
 
