@@ -1280,11 +1280,13 @@
         prepared
       };
 
-      const nextBoundary = this.directBoundaries.findIndex(
-        (boundary) =>
-          Math.max(0, Number(boundary.offsetSeconds) || 0) >
-          checkpoint + 0.025
-      );
+      const nextBoundary = checkpoint === 0
+        ? 0
+        : this.directBoundaries.findIndex(
+            (boundary) =>
+              Math.max(0, Number(boundary.offsetSeconds) || 0) >
+              checkpoint + 0.025
+          );
       this.directBoundaryIndex =
         nextBoundary < 0 ? this.directBoundaries.length : nextBoundary;
       this.currentChunkBoundaryIndex = Math.max(

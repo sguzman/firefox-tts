@@ -57,9 +57,11 @@
     const current = session;
     if (!current || current.paused) return;
     const time = Math.max(0, Number(audio.currentTime) || 0);
+    // More frequent source-clock sampling at high playback rates.
+    const lead = current.playbackRate >= 1.8 ? 0.025 : 0.015;
     let emitted = 0;
     while (current.nextBoundary < current.boundaries.length &&
-           current.boundaries[current.nextBoundary] <= time + 0.015 &&
+           current.boundaries[current.nextBoundary] <= time + lead &&
            emitted < 40) {
       emit(current, { type: "boundary", index: current.nextBoundary, currentTime: time });
       current.nextBoundary += 1;
@@ -68,7 +70,8 @@
   }
   function startTick() {
     endTick();
-    tickTimer = setInterval(tick, 50);
+    tick(); // Highlight the initial boundary without timer latency.
+    tickTimer = setInterval(tick, session?.playbackRate >= 1.8 ? 16 : 50);
   }
   function stopCurrent({ notify = true } = {}) {
     const previous = session;
@@ -121,7 +124,9 @@
       const checkpoint = Math.max(0, Number(message.startTimeSeconds) || 0);
       session = {
         id, tabId, url, boundaries,
-        nextBoundary: boundaries.findIndex(offset => offset > checkpoint + 0.025),
+        nextBoundary: checkpoint === 0
+          ? 0
+          : boundaries.findIndex(offset => offset > checkpoint + 0.025),
         paused: false,
         playbackRate: Math.min(4, Math.max(0.25, Number(message.playbackRate) || 1)),
         targetVolume: Math.min(1, Math.max(0, Number(message.volume ?? 1))),
@@ -209,6 +214,7 @@
     if (type === "EDGE_TTS_PIPER_OFFSCREEN_RATE") {
       current.playbackRate = Math.min(4, Math.max(0.25, Number(message.playbackRate) || 1));
       audio.playbackRate = current.playbackRate;
+      if (tickTimer !== null) startTick();
       return { accepted: true };
     }
     if (type === "EDGE_TTS_PIPER_OFFSCREEN_VOLUME") {

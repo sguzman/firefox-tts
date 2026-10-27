@@ -32,7 +32,7 @@ function harness() {
       createObjectURL() { const name = "blob:fake-" + (++serial); urls.add(name); return name; },
       revokeObjectURL(name) { urls.delete(name); }
     },
-    setInterval(fn) { const id = ++serial; ticks.set(id, fn); return id; },
+    setInterval(fn, ms) { const id = ++serial; ticks.set(id, { fn, ms }); return id; },
     clearInterval(id) { ticks.delete(id); },
     setTimeout(fn) { const id = ++serial; pauses.set(id, fn); return id; },
     clearTimeout(id) { pauses.delete(id); }
@@ -43,8 +43,9 @@ function harness() {
   return {
     player, sent, urls, ticks, pauses, audioChunks,
     get audio() { return audio; },
-    tickAll() { for (const fn of [...ticks.values()]) fn(); },
-    pauseAll() { for (const fn of [...pauses.values()]) fn(); }
+    tickAll() { for (const { fn } of [...ticks.values()]) fn(); },
+    pauseAll() { for (const fn of [...pauses.values()]) fn(); },
+    timerDurations() { return [...ticks.values()].map(t => t.ms); }
   };
 }
 
@@ -188,3 +189,26 @@ test("high-speed extension audio ramps output after decoder starts and clears on
   assert.equal(h.ticks.size, 0);
 });
 
+
+test("first word highlighted immediately and 2x boundary timer is 16ms", async () => {
+  const h = harness();
+  const fast = msg("fast-clock", h.audioChunks, [0, .04, .09, .2]);
+  fast.playbackRate = 2;
+  await h.player.handle(fast, 17);
+  const hits = h.sent.filter(x => x.message.event?.type === "boundary");
+  assert.ok(hits.some(x => x.message.event.index === 0),
+    "source boundary zero is never discarded during fresh playback");
+  assert.ok(h.timerDurations().includes(16), "2x media clock uses a 16ms timer");
+  h.audio.currentTime = .05;
+  h.tickAll();
+  assert.ok(h.sent.some(x => x.message.event?.type === "boundary" &&
+    x.message.event.index === 1));
+  const rate = await h.player.handle({
+    type: "EDGE_TTS_PIPER_OFFSCREEN_RATE",
+    playbackId: "fast-clock", playbackRate: 1
+  }, 17);
+  assert.equal(rate.accepted, true);
+  assert.ok(h.timerDurations().includes(50));
+  h.player.stopAll();
+  assert.equal(h.timerDurations().length, 0);
+});
