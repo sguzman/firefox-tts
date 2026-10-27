@@ -93,6 +93,13 @@ def main() -> None:
         xpi = home / "extension.xpi"
         subprocess.run([sys.executable, str(ROOT / "tools/build_xpi.py"),
                         "--output", str(xpi)], check=True)
+        # Geckodriver does not allow -remote-allow-system-access as a
+        # moz:firefoxOptions argument. Use a disposable launcher confined to
+        # this synthetic CI profile to inspect/click Firefox's real toolbar.
+        firefox_binary = shutil.which("firefox")
+        launcher = home / "firefox-qa-launcher"
+        launcher.write_text("#!/bin/sh\\nexec " + firefox_binary + " -remote-allow-system-access \\"$@\\"\\n")
+        launcher.chmod(0o700)
         os.environ["HOME"] = str(home)
         os.environ["XDG_CONFIG_HOME"] = str(home / ".config")
         os.environ["XDG_DATA_HOME"] = str(home / ".local/share")
@@ -114,7 +121,7 @@ def main() -> None:
                            timeout=15, explanation="Geckodriver never became ready")
                 capabilities = {"capabilities": {"alwaysMatch": {
                     "browserName": "firefox",
-                    "moz:firefoxOptions": {"args": ["-headless", "-remote-allow-system-access"]},
+                    "moz:firefoxOptions": {"binary": str(launcher), "args": ["-headless"]},
                     "acceptInsecureCerts": False
                 }}}
                 create = request(driver_base + "/session", "POST", capabilities, timeout=35)
