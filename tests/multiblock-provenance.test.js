@@ -1,6 +1,6 @@
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
-const { createSpeechBatch, createPayloadFromSegments } =
+const { createSpeechBatch, createUtterancePayload } =
   require("../src/content/speech-engine.js");
 const { segmentIndexForCharIndex } = require("../src/content/text-model.js");
 
@@ -17,7 +17,7 @@ test("multi-block speech batching maps source words through correct paragraph se
   const batch = createSpeechBatch(blocks, 0, 0, { minChars: 8, maxChars: 100 });
   assert.equal(batch.startBlockIndex, 0);
   assert.equal(batch.endBlockIndex, 0, "a completed first paragraph can stand alone at small target");
-  const combined = createPayloadFromSegments([...blocks[0].segments, ...blocks[1].segments]);
+  const combined = createUtterancePayload({ segments: [...blocks[0].segments, ...blocks[1].segments] }, 0);
   assert.equal(combined.text, "Alpha beta.\n\nThird sentence.");
   assert.deepEqual(combined.starts, [0, 6, 13, 19]);
   assert.equal(segmentIndexForCharIndex(combined.starts, 21), 3);
