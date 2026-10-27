@@ -93,3 +93,39 @@ test("Active injected Firefox sources do not depend on Windows or Chromium offsc
   assert.ok(!files.includes("src/content/win-natural-engine.js"));
   assert.ok(!files.includes("src/content/direct-audio-engine.js"));
 });
+
+test("Piper voice preferences pick Amy Low by default and explicitly saved Ryan", () => {
+  const amy = fakePiper;
+  const ryan = { name: "Ryan High", lang: "en-US", voiceId: "en_US-ryan-high",
+    __edgeTtsSource: "linux-piper" };
+  class Speech {
+    onVoicesChanged() { return () => {}; }
+    chooseVoices() { return [ryan, remote, amy]; }
+  }
+  class Toolbar {
+    setVoices(voices) { this.voices = voices; }
+    setRate() {}
+  }
+  const context = vm.createContext({
+    EdgeTtsExtension: {
+      TextModel: {},
+      Highlighter: { DEFAULT_SENTENCE_COLOR:"#fff", DEFAULT_WORD_COLOR:"#fff",
+        Highlighter: class {}, normalizeColor: c => c },
+      SpeechEngine: { SpeechEngine: Speech, createSpeechBatch() {} },
+      Toolbar: { Toolbar }
+    },
+    document: { documentElement: { lang: "en-US" } },
+    navigator: { language: "en-US" }, console
+  });
+  vm.runInContext(read("src/content/reader.js"), context);
+  const app = new context.EdgeTtsExtension.Reader.ReaderApp();
+  app.refreshVoices();
+  assert.equal(app.selectedVoice.voiceId, "en_US-amy-low");
+  assert.equal(app.voices.length, 2);
+  app.settings.voiceSource = "linux-piper";
+  app.settings.voiceId = "en_US-ryan-high";
+  app.settings.voiceName = "Ryan High";
+  app.refreshVoices();
+  assert.equal(app.selectedVoice.voiceId, "en_US-ryan-high");
+  assert.ok(!app.toolbar.voices.some(v => v.remote === true));
+});
