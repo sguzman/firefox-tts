@@ -8,9 +8,9 @@
     "note": "Repository initially contained only LICENSE and .gitignore"
   },
   "asOf": "2026-10-27",
-  "completedWeight": 54,
+  "completedWeight": 57,
   "totalWeight": 100,
-  "percent": 54,
+  "percent": 57,
   "roundDelta": 3,
   "source": {
     "repo": "sguzman/edge-tts",
@@ -328,8 +328,12 @@
       "weight": 3,
       "title": "Audit privacy, permissions, resource usage and license",
       "acceptance": "No telemetry; minimum permissions; no private QA data committed; third-party notices correct",
-      "status": "todo",
-      "evidence": []
+      "status": "done",
+      "evidence": [
+        "docs/SECURITY.md audits every MV3 permission, local data flow, model read-only policy and same-author source licensing",
+        "tests/privacy-static.test.js enforces no host permissions, auto injection, external connection, network APIs or dynamic evaluation",
+        "tests/idle-safety.test.js and migration isolation tests prove no idle scan and no Edge state writes; GitHub Actions run 40546193175 passed both jobs"
+      ]
     },
     {
       "id": "R01",
@@ -366,19 +370,20 @@
       "evidence": []
     }
   ],
-  "previousPercent": 51,
-  "round": "voice-catalog-preferences-1",
+  "previousPercent": 54,
+  "round": "privacy-static-1",
   "stageCompleted": {
     "Governance": 8,
     "Core port": 21,
     "Firefox integration": 11,
     "User experience": 7,
-    "Verification": 6,
+    "Verification": 9,
     "Release": 1
   },
   "lastGreenCI": {
-    "runId": 40545569795,
-    "note": "Both no-dependency and real-Firefox installation/idle jobs green. Audio initiation not attempted."
+    "runId": 40546193175,
+    "headSha": "274bf0d303462459c5eaad23fbafaa6352f34ff0",
+    "note": "No-dependency static/native checks and isolated Firefox install/idle smoke passed; activation/audio remain open."
   },
   "blockers": [
     {

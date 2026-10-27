@@ -17,7 +17,7 @@ Target: a Firefox Developer Edition-first, Linux-only, offline Piper read-aloud 
 
 Progress = sum of weights of work items with **verified acceptance evidence** / 100. Weights are frozen, include tests and user acceptance, and are not estimates of elapsed time. `roundDelta` = new percent minus previous reported percent. Unknown, partial, untested or blocked work remains **0 credit** for its item, even when code is checked in. Fixes within existing tasks do not introduce arbitrary new work or inflate progress. Any necessary scope change needs a recorded rationale and explicit weight migration that preserves the already-reported baseline. Ledger: [`progress.json`](../progress.json).
 
-Initial baseline: 0% (license + ignore only). Current voice-catalog round: **54% (+3 points since the previous 51% report)**. CPU-only model discovery and Amy/Ryan preferences pass synthetic tests, and disposable Firefox installation/idle CI is green; real speech and toolbar activation remain unverified.
+Initial baseline: 0% (license + ignore only). Current privacy-audit round: **57% (+3 points since the previous 54% report)**. No-network/no-telemetry permissions and local data isolation have passing CI audits; reader activation and audible Piper acceptance remain open.
 
 | Stage | Fixed weight |
 | --- | ---: |
@@ -69,7 +69,7 @@ Initial baseline: 0% (license + ignore only). Current voice-catalog round: **54%
 - [x] **📡 T02** · **3%** — Test native messaging protocol and failure boundaries. Acceptance: Synthetic framing, malformed frames, disconnects, cancellation and timeouts pass.
 - [ ] **🎼 T03** · **4%** — Stress playback timing and lifecycle. Acceptance: Long text, rapid play/pause, no leaks, suspended contexts and reload failures exercised.
 - [ ] **🧫 T04** · **4%** — Automate disposable Firefox end-to-end tests. Acceptance: Headless isolated Firefox tests for injection, reader, settings and native mock; no real profile access.
-- [ ] **🔒 T05** · **3%** — Audit privacy, permissions, resource usage and license. Acceptance: No telemetry; minimum permissions; no private QA data committed; third-party notices correct.
+- [x] **🔒 T05** · **3%** — Audit privacy, permissions, resource usage and license. Acceptance: No telemetry; minimum permissions; no private QA data committed; third-party notices correct.
 
 ### Release — 5%
 
