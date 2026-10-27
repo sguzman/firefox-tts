@@ -6,6 +6,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import sys
 import tempfile
 import time
@@ -55,14 +56,68 @@ def main(argv: list[str] | None = None) -> int:
                         help="actually copy; otherwise only validate and display a plan")
     parser.add_argument("--replace", action="store_true",
                         help="on --apply, archive existing Firefox settings before replacing")
+    parser.add_argument("--restore", metavar="BACKUP_FILE",
+                        help="restore a previously archived Firefox pronunciation revision")
     args = parser.parse_args(argv)
     if args.replace and not args.apply:
         parser.error("--replace requires --apply")
+    if args.replace and args.restore:
+        parser.error("--restore and --replace cannot be combined")
 
     data = app_data()
     source = data / "edge-natural-tts" / "pronunciation-config.json"
     target = data / "firefox-tts" / "pronunciation-config.json"
     history = target.parent / "pronunciation-history"
+
+    if args.restore:
+        # A single basename from our own private backup directory; forbid
+        # traversals, symlinks and foreign destinations.
+        basename = args.restore
+        if not re.fullmatch(
+            r"before-(?:edge-import|restore)-[0-9]+-[0-9a-f]{12}\\.json",
+            basename,
+        ):
+            print("Unrecognized backup filename", file=sys.stderr)
+            return 2
+        backup = history / basename
+        if (history.is_symlink() or backup.is_symlink() or not backup.is_file():
+            print("Backup missing or unsafe", file=sys.stderr)
+            return 2
+        if target.is_symlink() or target.parent.is_symlink():
+            print("Unsafe Firefox destination", file=sys.stderr)
+            return 2
+        archived = backup.read_bytes()
+        try:
+            validate_config(archived)
+        except ValueError as error:
+            print(error, file=sys.stderr)
+            return 2
+        print(f"Restore backup: {basename}")
+        print(f"SHA256: {hashlib.sha256(archived).hexdigest()}")
+        if not args.apply:
+            print("Dry run: no files were changed. Use --apply --restore BACKUP_FILE.")
+            return 0
+        if target.exists():
+            previous = target.read_bytes()
+            try:
+                validate_config(previous)
+            except ValueError as error:
+                print(f"Current Firefox config invalid: {error}", file=sys.stderr)
+                return 2
+            name = (f"before-restore-{int(time.time() * 1000)}-"
+                    f"{hashlib.sha256(previous).hexdigest()[:12]}.json")
+            new_backup = history / name
+            if new_backup.exists():
+                print("Restore backup collision; no files changed", file=sys.stderr)
+                return 2
+            atomic_write(new_backup, previous)
+            if new_backup.read_bytes() != previous:
+                raise RuntimeError("Failed to verify pre-restore backup")
+        atomic_write(target, archived)
+        if target.read_bytes() != archived:
+            raise RuntimeError("Restore verification failed")
+        print("Firefox pronunciation restored. Edge source untouched.")
+        return 0
 
     if not source.is_file():
         print(f"Source Edge pronunciation configuration not found: {source}", file=sys.stderr)
