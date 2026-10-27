@@ -1,6 +1,6 @@
 # 🦊 Firefox TTS — Linux installation and recovery
 
-**Status: development candidate, 94% verified as of October 27, 2026; not a finished release.** Real Firefox injection, synthetic CPU Piper Native Messaging, and controls have been tested in disposable profiles. The user's actual installed CPU-only Piper 1.8.0 model also passed a read-only local synthesis test (`en_US-amy-low`, 16 kHz, 93,184 PCM bytes). **Audible playback in the user's Firefox Developer Edition, the authenticated ChatGPT Writing Block, and final acceptance remain open.** The steps below are for explicit, opt-in local acceptance testing; no automatic install or migration occurs.
+**Status: development candidate, 94% verified as of October 27, 2026; not a finished release.** Real Firefox injection, synthetic CPU Piper Native Messaging, and controls have been tested in disposable profiles. The user's actual installed CPU-only Piper 1.8.0 model also passed a read-only local synthesis test (`en_US-amy-low`, 16 kHz, 93,184 PCM bytes). **The user has confirmed audible real-model speech in Firefox, but subsequently identified startup pauses, single-sentence stalls and high-speed pops in an earlier candidate.** The latest revision addresses these with an autoplay-policy fallback, persistent audio-element ownership and post-decoder high-rate attack ramp; the fixes pass isolated Firefox regression checks but live listening acceptance and actual authenticated Writing Blocks remain open. The steps below are for explicit, opt-in local acceptance testing; no automatic install or migration occurs.
 
 ## Requirements
 
@@ -35,6 +35,8 @@ export FIREFOX_TTS_VOICE_DIR=/absolute/path/to/your/onnx/voices
 ~~~
 
 The installer rejects `onnxruntime-gpu` and performs no `pip` installation. It never modifies the models or the existing Edge native host.
+
+For updates that change **only Firefox JavaScript/CSS/test files**, run `git pull --ff-only`, then reload the temporary add-on under `about:debugging` and refresh the affected page. Do **not** rerun the native installer or reinstall Piper unless the native Python helper source or its registration changes. The current startup/autoplay/high-rate fixes are JavaScript-only.
 
 ## Register the Firefox native helper
 

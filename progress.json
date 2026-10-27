@@ -11,7 +11,7 @@
   "completedWeight": 94,
   "totalWeight": 100,
   "percent": 94,
-  "roundDelta": 5,
+  "roundDelta": 0,
   "source": {
     "repo": "sguzman/edge-tts",
     "branch": "development/linux-piper-v1",
@@ -218,7 +218,8 @@
         "Disposable real Firefox QA-only localhost test forced a synthetic tab-media failure and verified that extension-owned background Audio.play() accepted a fake Piper WAV; run 40550822043 all three jobs green",
         "tests/audio-stress.test.js covers long boundary lists, 150 rapid sessions, multiple pause/resumes, timer and object URL cleanup, autoplay rejection and explicit retry; run 40550995374 all three jobs green",
         "Real installed ONNX voices and audible real-world media output remain R03/F04 acceptance, not claimed here",
-        "Gecko mock audio sink: isolated Firefox MediaSink advanced the real audio element currentTime past 0.12s while playing a 0.8-second synthetically generated Piper WAV, run 40552270990. Headless mock sink does not confirm physical sound."
+        "Gecko mock audio sink: isolated Firefox MediaSink advanced the real audio element currentTime past 0.12s while playing a 0.8-second synthetically generated Piper WAV, run 40552270990. Headless mock sink does not confirm physical sound.",
+        "Gecko 159 isolated QA with normal media.autoplay.default=1: page audio policy denial fell back to extension-owned audio, and >=2 consecutive sentence WAVs played without Resume. CI 40579289268 all three jobs green on retry; not a real speaker test."
       ]
     },
     {
@@ -343,7 +344,8 @@
       "evidence": [
         "tests/audio-stress.test.js verifies 150 rapid play/stop cycles, zero leaked blobs or timers and bounded long-text boundary events",
         "Repeated pause/resume and old-session suppression, fresh event-page scope and native disconnect/timeout/race exercised in synthetic tests",
-        "GitHub Actions run 40547884795 green; real sustained playback remains the F05/R03 gate"
+        "GitHub Actions run 40547884795 green; real sustained playback remains the F05/R03 gate",
+        "tests/piper-quit-lifecycle.test.js proves one tab media element is reused across WAVs and old one stopped on cancel/abandon; tests/audio-stress.test.js verifies a 32ms gain ramp at >=1.8x releases timers on Quit and leaves Resume audible. CI 40579289268."
       ]
     },
     {
@@ -410,11 +412,17 @@
       "title": "Real Firefox Developer Edition user acceptance",
       "acceptance": "Exact candidate loaded in real browser and user confirms speech, quit, settings and no focus theft",
       "status": "todo",
-      "evidence": []
+      "evidence": [],
+      "partialEvidence": [
+        "User confirmed Firefox Dev Edition temporary addon launches HUD, Preferences page displays, and actual installed Amy voice audibly speaks; also reported unexpected initial pause, single-sentence stall, and intermittent 1.9x+ popping on earlier candidates.",
+        "Fix candidate 96ec1aa: content-site autoplay NotAllowed falls back automatically to extension-owned player; subsequent sentences stay on same transport. CI uses Firefox normal autoplay policy instead of silently disabling it.",
+        "Real Firefox QA verified >=2 consecutive WAVs, nonzero reader boundaries, and Stop/Quit/reopen with no overlapping HTMLAudioElements; post-decoder 32ms high-rate volume attack and preserved audio element have synthetic regression tests.",
+        "Pending: user's live listening confirmation that 96ec1aa fixes initial start, entire text progression and 1.9x popping, plus focus and final acceptance."
+      ]
     }
   ],
-  "previousPercent": 89,
-  "round": "real-cpu-piper-voice-acceptance-1",
+  "previousPercent": 94,
+  "round": "firefox-normal-autoplay-and-high-speed-output-mitigation-1",
   "stageCompleted": {
     "Governance": 8,
     "Core port": 21,
@@ -424,30 +432,29 @@
     "Release": 3
   },
   "lastGreenCI": {
-    "runId": 40552270990,
-    "headSha": "04dc9063f2a9fc06b5229db5f9aa9f37ebadc041",
-    "note": "3 jobs green. QA-only Gecko using mock audio backend decoded and advanced real media clock of synthetic Piper WAV. CPU-only preflight tested with disposable fake Piper. Real ONNX speech and physical playback not yet accepted."
+    "runId": 40579289268,
+    "headSha": "96ec1aaeaaceed14528517d61466575d608d0d90",
+    "note": "All 3 jobs green on retry after isolated headless Firefox startup timeout. Real Gecko QA additionally verified automatic playback across >=2 sentence WAVs under normal media.autoplay.default=1, without Resume; synthetic only. Separate tests verified Stop/Quit/reopen, tab audio reuse, and short high-rate output ramp. User audible acceptance of this version still pending."
   },
   "blockers": [
     {
       "id": "U05",
-      "detail": "Actual authenticated ChatGPT Writing Block extraction and focus safety still require live confirmation. Disposable real Firefox synthetic fixture passed."
+      "detail": "Actual authenticated ChatGPT Writing Block and composer focus behavior remain live-unverified; disposable Gecko synthetic fixture passed."
     },
     {
       "id": "R03",
-      "detail": "Exact-candidate user acceptance in Firefox Developer Edition with audible speech, stop/quit/settings/focus remains unverified."
+      "detail": "User previously confirmed real voice audible and Firefox HUD/options but reported initial pause, single sentence then stall, and pop at high speed. Fix candidate 96ec1aa passes automated Gecko normal-autoplay multi-sentence, cleanup and high-speed ramp tests; live listening acceptance remains open."
     }
   ],
   "lastBrowserEvidence": {
-    "runId": 40544769463,
+    "runId": 40579289268,
     "passed": [
-      "Firefox temporary MV3 install",
-      "No automatic content injection before toolbar action"
+      "Disposable real Firefox loads QA-only XPI and native synthetic voice",
+      "Gecko normal autoplay policy: fallback automatically plays >=2 consecutive sentence WAVs without Resume and emits word boundaries",
+      "Gecko media timing and Stop/Quit/reopen with no duplicate player",
+      "Speed, batch, sentence pause, pronunication options test and theme; all CI green"
     ],
-    "failed": [
-      "Keyboard shortcut failed to expose reader toolbar"
-    ],
-    "note": "Isolated runner profile, not user's real Firefox"
+    "note": "QA-only fake Piper and headless mock audio sink, no real user page data; separate local user validation required."
   },
   "realModelEvidence": {
     "date": "2026-10-27",

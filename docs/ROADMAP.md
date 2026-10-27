@@ -17,7 +17,7 @@ Target: a Firefox Developer Edition-first, Linux-only, offline Piper read-aloud 
 
 Progress = sum of weights of work items with **verified acceptance evidence** / 100. Weights are frozen, include tests and user acceptance, and are not estimates of elapsed time. `roundDelta` = new percent minus previous reported percent. Unknown, partial, untested or blocked work remains **0 credit** for its item, even when code is checked in. Fixes within existing tasks do not introduce arbitrary new work or inflate progress. Any necessary scope change needs a recorded rationale and explicit weight migration that preserves the already-reported baseline. Ledger: [`progress.json`](../progress.json).
 
-Initial baseline: 0% (license + ignore only). Current genuine CPU Piper model validation: **94% (+5 points since 89%)**. User's existing Piper 1.8.0 performed a successful en_US-amy-low inference at 16000 Hz, producing 93184 PCM bytes. Remaining gates are authenticated ChatGPT Writing Block behavior and final Firefox Developer Edition user acceptance.
+Initial baseline: 0% (license + ignore only). Current evidence-backed completion: **94% (Δ +0 points in the latest reliability round)**. Real installed Piper 1.8.0 produced 93,184 PCM bytes at 16 kHz. Disposable Gecko QA under normal autoplay restrictions now starts the Firefox-owned WAV fallback automatically and advances through multiple sentences; separate tests cover Stop/Quit/reopen and a short high-rate onset ramp. The user's previous candidate had intermittent startup/stall/popping failures; the latest candidate requires live listening acceptance. The remaining gates are authenticated ChatGPT Writing Block behavior and final Firefox Developer Edition user acceptance.
 
 | Stage | Fixed weight |
 | --- | ---: |
