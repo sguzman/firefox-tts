@@ -31,14 +31,14 @@ class EdgeFadeTest(unittest.TestCase):
         self.assertTrue(all(a >= b for a,b in zip(after[-193:-1],after[-192:])))
 
     def test_stereo_ramps_both_channels_without_swapping_or_clipping(self):
-        frames = 320
+        frames = 640
         raw = [v for _ in range(frames) for v in (32767, -32768)]
         pcm = bytearray(struct.pack("<" + "h" * len(raw), *raw))
         host.taper_pcm_edges(pcm, 16000, 2, 2)
         out = samples(pcm)
         self.assertEqual(out[:2], [0, 0])
         self.assertEqual(out[-2:], [0, 0])
-        self.assertEqual(out[200:202], [32767, -32768])
+        self.assertEqual(out[400:402], [32767, -32768])
         self.assertTrue(all(-32768 <= v <= 32767 for v in out))
 
     def test_tiny_clip_and_invalid_format_are_safe(self):
