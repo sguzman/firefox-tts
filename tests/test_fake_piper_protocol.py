@@ -59,6 +59,7 @@ class FakePiperProtocolTest(unittest.TestCase):
         env = dict(os.environ)
         env.update(PYTHONPATH=str(root), HOME=str(root), XDG_DATA_HOME=str(root / "data"),
                    EDGE_TTS_PIPER_VOICE_DIR=str(self.voices),
+                   FIREFOX_TTS_PIPER_PYTHON=sys.executable,
                    FIREFOX_TTS_DATA_HOME=str(root / "firefox-data"))
         self.env = env
         self.proc = subprocess.Popen([sys.executable, str(HOST)], env=env,
