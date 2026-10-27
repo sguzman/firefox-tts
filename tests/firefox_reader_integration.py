@@ -398,10 +398,10 @@ def main() -> None:
                                  - original_handles - {opened["handle"]}),
                     timeout=12, explanation="Firefox browser API did not open extension options")
                 options_window = options_handles[0]
-                base.webdriver(host, session, "POST", "window", {"handle": options_window})
-                base.eventually(lambda: base.execute(host, session,
-                    "return Boolean(document.querySelector('#preview-source'))"),
-                    timeout=12, explanation="Firefox extension options did not render")
+                # Marionette cannot inspect privileged moz-extension:// tabs.
+                # The injected QA-only options probe will report the rendered
+                # editor and its successful synth to the ordinary localhost
+                # page through runtime messaging; assert that report below.
                 base.webdriver(host, session, "POST", "window", {"handle": original_window})
                 base.execute(host, session,
                     "document.querySelector('#editor').focus(); return document.activeElement.id")
