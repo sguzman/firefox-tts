@@ -64,7 +64,7 @@
       const element = document.createElement("section");
       element.id = "edge-tts-toolbar";
       element.dataset.edgeTtsUi = "true";
-      element.setAttribute("aria-label", "Edge Natural TTS controls");
+      element.setAttribute("aria-label", "Firefox TTS controls");
       element.innerHTML = `
         <div class="edge-tts-header" data-edge-tts-drag-handle>
           <strong>Firefox TTS</strong>

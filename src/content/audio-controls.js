@@ -10,7 +10,7 @@
   const DEFAULT_VOLUME = 1;
   const MIN_RATE = 0.5;
   const MAX_RATE = 8;
-  const MAX_VOLUME = 2;
+  const MAX_VOLUME = 1;
 
   function clamp(value, minimum, maximum) {
     return Math.min(maximum, Math.max(minimum, value));
@@ -59,7 +59,7 @@
         row.innerHTML = `
           <label class="edge-tts-rate-label" title="Piper playback volume (0–100%)">
             Volume
-            <input data-edge-tts-volume type="range" min="0" max="200" step="5" value="100" aria-label="Speech volume">
+            <input data-edge-tts-volume type="range" min="0" max="100" step="5" value="100" aria-label="Speech volume">
             <output data-edge-tts-volume-value>100%</output>
           </label>
         `;
