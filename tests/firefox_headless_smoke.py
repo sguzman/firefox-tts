@@ -114,7 +114,7 @@ def main() -> None:
                            timeout=15, explanation="Geckodriver never became ready")
                 capabilities = {"capabilities": {"alwaysMatch": {
                     "browserName": "firefox",
-                    "moz:firefoxOptions": {"args": ["-headless"]},
+                    "moz:firefoxOptions": {"args": ["-headless", "-remote-allow-system-access"]},
                     "acceptInsecureCerts": False
                 }}}
                 create = request(driver_base + "/session", "POST", capabilities, timeout=35)
