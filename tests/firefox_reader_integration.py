@@ -50,6 +50,47 @@ def qa_package(release: Path, destination: Path) -> None:
         });
       })().catch(error => console.error("Firefox QA reader injection:", error));
     });""".replace("FILE_LIST", json.dumps(files))
+    bridge += """\nbrowser.runtime.onMessage.addListener((message) => {
+      if (message?.type !== "FIREFOX_TTS_QA_OPTIONS_REPORT") return false;
+      return browser.tabs.query({ url: "http://127.0.0.1/*" }).then(async tabs => {
+        for (const tab of tabs) {
+          await browser.scripting.executeScript({
+            target: { tabId: tab.id },
+            func: (result) => {
+              document.documentElement.dataset.firefoxTtsQaReport = JSON.stringify(result);
+            },
+            args: [message.result]
+          });
+        }
+        return { accepted: true };
+      });
+    });"""
+    probe = """/* QA ONLY — never bundled in the original XPI. */
+    (async () => {
+      const report = { synthetic: true };
+      try {
+        await new Promise(resolve => setTimeout(resolve, 750));
+        const source = document.querySelector("#preview-source");
+        if (!source) throw new Error("options preview input missing");
+        source.value = "GPU JSON SQLite";
+        source.dispatchEvent(new Event("input", { bubbles: true }));
+        report.spoken = document.querySelector("#preview-spoken")?.value || "";
+        const result = await browser.runtime.sendMessage({
+          type: "EDGE_TTS_PRONUNCIATION_TEST_SYNTHESIZE",
+          text: report.spoken,
+          voiceId: "en_US-amy-low"
+        });
+        report.accepted = result?.accepted === true;
+        report.chunkCount = Array.isArray(result?.audioChunks) ? result.audioChunks.length : 0;
+        report.error = result?.error || "";
+      } catch (error) {
+        report.error = String(error?.message || error);
+      }
+      await browser.runtime.sendMessage({
+        type: "FIREFOX_TTS_QA_OPTIONS_REPORT", result: report
+      }).catch(() => {});
+    })();
+    """
     with zipfile.ZipFile(release) as original:
         manifest = json.loads(original.read("manifest.json"))
         manifest["host_permissions"] = ["http://127.0.0.1/*"]
@@ -60,8 +101,14 @@ def qa_package(release: Path, destination: Path) -> None:
                 contents = original.read(entry.filename)
                 if entry.filename == "manifest.json":
                     contents = json.dumps(manifest, indent=2).encode("utf-8")
+                if entry.filename == "src/options/pronunciation.html":
+                    contents = contents.replace(
+                        b"</body>",
+                        b'<script src="../../qa/options-probe.js"></script></body>'
+                    )
                 output.writestr(entry.filename, contents)
             output.writestr("qa/bridge.js", bridge)
+            output.writestr("qa/options-probe.js", probe)
     print("QA-only XPI: localhost host permission and an isolated synthetic-page trigger")
 
 
@@ -199,20 +246,15 @@ def main() -> None:
                     "return document.querySelector('#edge-tts-toolbar') === null"),
                     timeout=8, explanation="Quit did not remove toolbar in real Firefox")
                 print("PASS: Real Firefox synthetic reader stop/quit did not steal editor focus")
-                base.webdriver(host, session, "POST", "window", {"handle": options_window})
-                assert "Pronunciation" in base.execute(host, session, "return document.title")
-                base.eventually(lambda: base.execute(host, session,
-                    "return Boolean(document.querySelector('#preview-spoken')?.value)"),
-                    timeout=12, explanation="Firefox options page failed to load pronunciation preview")
-                spoken = base.execute(host, session,
-                    """const src=document.querySelector('#preview-source');
-                       src.value='GPU JSON SQLite';
-                       src.dispatchEvent(new Event('input',{bubbles:true}));
-                       return document.querySelector('#preview-spoken').value;""")
-                assert "jee, pee, you" in spoken and "S, Q, Lite" in spoken, spoken
-                assert base.execute(host, session,
-                    "return document.querySelector('#test-play') !== null")
-                print("PASS: Real Firefox pronunciation editor projects synthetic source text")
+                report_json = base.eventually(lambda: base.execute(host, session,
+                    "return document.documentElement.dataset.firefoxTtsQaReport"),
+                    timeout=18, explanation="Firefox QA-only options probe did not return a result")
+                report = json.loads(report_json)
+                assert report.get("synthetic") is True
+                assert "jee, pee, you" in report.get("spoken", ""), report
+                assert "S, Q, Lite" in report.get("spoken", ""), report
+                assert report.get("accepted") is True and report.get("chunkCount", 0) > 0, report
+                print("PASS: Firefox pronunciation options projected source and synthesized mock Piper WAV")
 
             except Exception:
                 logs.flush()
