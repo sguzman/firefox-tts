@@ -44,3 +44,5 @@ jobs:
       - uses: actions/checkout@v4
       - name: Exercise real Firefox reader against QA-only localhost synthetic fixture
         run: python3 tests/firefox_reader_integration.py
+      - name: Verify normal Firefox autoplay policy still starts and advances Piper audio
+        run: FIREFOX_TTS_QA_AUTOPLAY=1 python3 tests/firefox_reader_integration.py
