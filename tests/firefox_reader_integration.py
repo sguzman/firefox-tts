@@ -366,11 +366,31 @@ def main() -> None:
                         timeout=18, explanation="Autoplay-blocked tab did not try Firefox-owned audio")
                     fallback = json.loads(fallback_json)
                     assert fallback.get("accepted") is True, fallback
-                    base.eventually(lambda: base.execute(host, session,
-                        """const r=globalThis.__EDGE_TTS_READER__?.app;
-                           return r && r.enabled && !r.paused && !r.stopped &&
-                             r.speech?.linuxPiperUseExtensionAudio === true;"""),
-                        timeout=12, explanation="Autoplay fallback left reader paused")
+                    try:
+                        base.eventually(lambda: base.execute(host, session,
+                            """const r=globalThis.__EDGE_TTS_READER__?.app;
+                               return r && r.enabled && !r.paused && !r.stopped &&
+                                 r.speech?.linuxPiperUseExtensionAudio === true;"""),
+                            timeout=9, explanation="Autoplay fallback left reader paused")
+                    except AssertionError:
+                        state = base.execute(host, session,
+                            """const r=globalThis.__EDGE_TTS_READER__?.app;
+                               const s=r?.speech;
+                               return {
+                                 enabled:r?.enabled, paused:r?.paused, stopped:r?.stopped,
+                                 audioOwner:r?.audioOwner, status:document.querySelector('[data-edge-tts-status]')?.textContent,
+                                 chunkIndex:s?.currentChunkIndex, chunkCount:s?.currentChunks?.length,
+                                 directActive:s?.directActive, directSessionMode:s?.directSessionMode,
+                                 useExt:s?.linuxPiperUseExtensionAudio, offscreen:s?.linuxPiperOffscreenPlayback?.playbackId,
+                                 pending:s?.linuxPiperRequests?.size, prepared:s?.linuxPiperPrepared?.size,
+                                 media:document.documentElement.dataset.firefoxTtsQaMediaAttempted,
+                                 fallback:document.documentElement.dataset.firefoxTtsQaPlayback,
+                                 fallbackCount:document.documentElement.dataset.firefoxTtsQaPlaybackCount,
+                                 cursor:[r?.currentBlockIndex,r?.currentSegmentIndex],
+                                 terminal:globalThis.__EDGE_TTS_LAST_TERMINAL__
+                               };""")
+                        print("STRICT AUTOPLAY READER DIAGNOSTICS:", state, file=sys.stderr, flush=True)
+                        raise
                     base.eventually(lambda: base.execute(host, session,
                         "return Number(document.documentElement.dataset.firefoxTtsQaPlaybackCount || 0) >= 2"),
                         timeout=22, explanation="Autoplay fallback stopped at first sentence")
