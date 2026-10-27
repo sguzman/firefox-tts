@@ -17,7 +17,7 @@ Target: a Firefox Developer Edition-first, Linux-only, offline Piper read-aloud 
 
 Progress = sum of weights of work items with **verified acceptance evidence** / 100. Weights are frozen, include tests and user acceptance, and are not estimates of elapsed time. `roundDelta` = new percent minus previous reported percent. Unknown, partial, untested or blocked work remains **0 credit** for its item, even when code is checked in. Fixes within existing tasks do not introduce arbitrary new work or inflate progress. Any necessary scope change needs a recorded rationale and explicit weight migration that preserves the already-reported baseline. Ledger: [`progress.json`](../progress.json).
 
-Initial baseline: 0% (license + ignore only). Current real-Firefox E2E/lifecycle round: **73% (+16 points since 57%)**. Disposable Firefox, reader/settings, Native Messaging mock and playback lifecycle checks pass. Real installed Piper model synthesis and audible browser playback remain open.
+Initial baseline: 0% (license + ignore only). Current UI/pronunciation/docs round: **82% (+9 points since 73%)**. Disposable real Firefox validates options projection, fake native speech, toolbar controls and focus safety. Real ONNX speech, audible playback and actual ChatGPT production Writing Blocks remain unverified.
 
 | Stage | Fixed weight |
 | --- | ---: |
@@ -58,9 +58,9 @@ Initial baseline: 0% (license + ignore only). Current real-Firefox E2E/lifecycle
 ### User experience — 18%
 
 - [x] **🎙️ U01** · **3%** — Port Piper catalog, default and preferences. Acceptance: Voice discovery works; Amy Low default with optional Ryan and other installed voices.
-- [ ] **🗣️ U02** · **4%** — Port pronunciation projection and live testing. Acceptance: Rules, previews, import/export, source mapping and sentence boundaries tested.
+- [x] **🗣️ U02** · **4%** — Port pronunciation projection and live testing. Acceptance: Rules, previews, import/export, source mapping and sentence boundaries tested.
 - [x] **💾 U03** · **4%** — Preserve user pronunciation rules and backups. Acceptance: Explicit migration/read-only source handling; restore, revision history and failure cases tested.
-- [ ] **🎚️ U04** · **3%** — Port toolbar, batching and speech controls. Acceptance: Volume, pitch-preserving speed, sentence pause, seek, highlighting and controls verified.
+- [x] **🎚️ U04** · **3%** — Port toolbar, batching and speech controls. Acceptance: Volume, pitch-preserving speed, sentence pause, seek, highlighting and controls verified.
 - [ ] **📝 U05** · **4%** — Handle ChatGPT messages and writing blocks safely. Acceptance: Synthetic and live writing-block extraction verified, without reading composer or stealing focus.
 
 ### Verification — 17%
@@ -73,7 +73,7 @@ Initial baseline: 0% (license + ignore only). Current real-Firefox E2E/lifecycle
 
 ### Release — 5%
 
-- [ ] **📘 R01** · **2%** — Write installation, migration and recovery instructions. Acceptance: Linux-only instructions tested on disposable data directories and no sudo requirement.
+- [x] **📘 R01** · **2%** — Write installation, migration and recovery instructions. Acceptance: Linux-only instructions tested on disposable data directories and no sudo requirement.
 - [x] **📦 R02** · **1%** — Produce reproducible unsigned/signed-ready extension packaging. Acceptance: Deterministic XPI artifact and content hashes documented; no paid service.
 - [ ] **✅ R03** · **2%** — Real Firefox Developer Edition user acceptance. Acceptance: Exact candidate loaded in real browser and user confirms speech, quit, settings and no focus theft.
 

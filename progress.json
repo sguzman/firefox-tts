@@ -8,10 +8,10 @@
     "note": "Repository initially contained only LICENSE and .gitignore"
   },
   "asOf": "2026-10-27",
-  "completedWeight": 73,
+  "completedWeight": 82,
   "totalWeight": 100,
-  "percent": 73,
-  "roundDelta": 16,
+  "percent": 82,
+  "roundDelta": 9,
   "source": {
     "repo": "sguzman/edge-tts",
     "branch": "development/linux-piper-v1",
@@ -245,8 +245,12 @@
       "weight": 4,
       "title": "Port pronunciation projection and live testing",
       "acceptance": "Rules, previews, import/export, source mapping and sentence boundaries tested",
-      "status": "todo",
-      "evidence": []
+      "status": "done",
+      "evidence": [
+        "Production pronunciation/defaults/engine and options UI use local projection, schema migration and source-to-spoken mapping; upstream regression tests pass",
+        "In disposable real Firefox, QA-only options probe transformed 'GPU JSON SQLite' and Native Messaging returned accepted synthetic PCM/WAV; run 40550024703 passed all three jobs",
+        "Synthetic source and fake CPU Piper only; no personal pronunciation data entered the QA browser"
+      ]
     },
     {
       "id": "U03",
@@ -269,8 +273,12 @@
       "weight": 3,
       "title": "Port toolbar, batching and speech controls",
       "acceptance": "Volume, pitch-preserving speed, sentence pause, seek, highlighting and controls verified",
-      "status": "todo",
-      "evidence": []
+      "status": "done",
+      "evidence": [
+        "Firefox reader toolbar and audio controls exercise speed, volume (capped at actual 100% WAV output), batch target and sentence pauses",
+        "Headless Firefox QA verifies local Amy voice selection, controls output, Stop/Quit and no editor focus theft; run 40550024703",
+        "tests/audio-stress.test.js plus tab ownership checks exercise synthetic pause/resume/play/stop and cleanup; real audible playback remains F05/R03"
+      ]
     },
     {
       "id": "U05",
@@ -358,8 +366,12 @@
       "weight": 2,
       "title": "Write installation, migration and recovery instructions",
       "acceptance": "Linux-only instructions tested on disposable data directories and no sudo requirement",
-      "status": "todo",
-      "evidence": []
+      "status": "done",
+      "evidence": [
+        "docs/INSTALLATION.md documents Linux-only existing CPU Piper runtime, isolated native registration, temporary Firefox install and unsigned XPI cautions",
+        "Dry-run-first pronunciation migration, rollback and manifest unregistration keep Edge assets untouched",
+        "Disposable-home Python installer/migration/rollback tests and headless Firefox QA were green in run 40550024703"
+      ]
     },
     {
       "id": "R02",
@@ -386,25 +398,28 @@
       "evidence": []
     }
   ],
-  "previousPercent": 57,
-  "round": "firefox-e2e-and-lifecycle-1",
+  "previousPercent": 73,
+  "round": "firefox-ui-pronunciation-docs-1",
   "stageCompleted": {
     "Governance": 8,
     "Core port": 21,
     "Firefox integration": 19,
-    "User experience": 7,
+    "User experience": 14,
     "Verification": 17,
-    "Release": 1
+    "Release": 3
   },
   "lastGreenCI": {
-    "runId": 40547884795,
-    "headSha": "88e151c282a2bb0e0ce47b99d5d943ac70fef7b9",
-    "note": "3 CI jobs green: static/native tests, production XPI install/idle, QA-only localhost Firefox reader/native-mock integration; actual Piper ONNX and audible output not verified"
+    "runId": 40550024703,
+    "note": "Synthetic real Firefox: Writing Block DOM, reader, full toolbar, options spoken projection and Native Messaging fake WAV; all jobs pass. Real Piper model and authenticated ChatGPT production surface not checked."
   },
   "blockers": [
     {
+      "id": "U05",
+      "detail": "Real Firefox synthetic ChatGPT turn and Writing Block extraction passed; actual authenticated ChatGPT production Writing Block not yet accepted."
+    },
+    {
       "id": "F04/F05/R03",
-      "detail": "Actual installed CPU Piper model synthesis and audible playback in Firefox Developer Edition remain unverified; user acceptance not yet requested."
+      "detail": "Real Piper ONNX model speech, audible playback, media-clock accuracy and exact candidate acceptance require real installed Firefox/Piper QA."
     }
   ],
   "lastBrowserEvidence": {
