@@ -52,7 +52,7 @@ test("Piper sentence chunking honors a mid-sentence resume cursor", () => {
 
 test("oversized press-release sentence splits at clauses without becoming fake sentences", () => {
   const text = "WASHINGTON, D.C. — Ways and Means Committee Chairman Jason Smith (MO-08) is demanding records from The People’s Forum, a New York-based 501(c)(3) organization, in a letter today following mounting evidence that shows that this organization has acted as a foreign agent of the Chinese Communist Party (CCP) and has received millions of dollars in funding from a known CCP ally, Neville Roy Singham, while enjoying the benefits of U.S. tax-exempt status.";
-  const segments = (text.match(/\\S+/g) || []).map((token, index) => ({
+  const segments = (text.match(/\S+/g) || []).map((token, index) => ({
     blockIndex: 0,
     sentenceIndex: 0,
     segmentIndex: index,

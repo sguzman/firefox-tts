@@ -11,7 +11,7 @@ const pronunciation = require("../src/pronunciation/engine.js");
 test("Lantern Leaf pronunciation defaults survive the port", () => {
   const config = defaults.cloneDefaultConfig();
 
-  assert.equal(config.pronunciation.brandMap.SQLite, "S Q Lite");
+  assert.equal(config.pronunciation.brandMap.SQLite, "S, Q, Lite");
   assert.equal(config.pronunciation.customPronunciations.Cato, "Kay toe");
   assert.equal(config.abbreviations.case["Dr."], "Doctor");
   assert.equal(config.abbreviations.case["p."], "page");
@@ -27,7 +27,7 @@ test("Linux paths and shell flags become stable spoken projections", () => {
 
   assert.equal(
     result.text,
-    "read link dash f home directory, slash, dot config, slash, fish, slash, config dot fish"
+    "read link dash f, home directory, slash, dot config, slash, fish, slash, config dot fish"
   );
   assert.ok(
     result.transformations.some((item) => item.ruleId === "filesystem-path")
@@ -44,7 +44,7 @@ test("abbreviations, brands, years, acronyms, and custom pronunciations compose"
 
   assert.equal(
     result.text,
-    "Doctor Kay toe uses jee pee you jay ess oh en S Q Lite My S Q L on page 42 in two thousand twenty six."
+    "Doctor Kay toe uses jee, pee, you, jay, ess, oh, en, S, Q, Lite, My S, Q, L on page 42 in two thousand twenty six."
   );
 });
 
@@ -73,7 +73,7 @@ test("spoken expansion preserves canonical source segment identity", () => {
   assert.equal(result.starts[0], 0);
   assert.ok(result.starts[1] > "~/.config/fish/config.fish".length);
   assert.match(result.text, /^home directory, slash,/);
-  assert.match(result.text, /jee pee you$/);
+  assert.match(result.text, /jee, pee, you$/);
 });
 
 test("Lantern Leaf citation and footnote cleanup rules remain available", () => {
@@ -209,6 +209,6 @@ test("default acronym exceptions stay empty because ALL-CAPS auto-spelling cover
   assert.equal(config.acronyms.autoUppercaseMinLength, 3);
   assert.equal(
     pronunciation.transformText("GPU ENG JSON", config).text,
-    "jee, pee, you ee, en, jee jay, ess, oh, en"
+    "jee, pee, you, ee, en, jee, jay, ess, oh, en"
   );
 });
