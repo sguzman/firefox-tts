@@ -32,11 +32,16 @@ def qa_package(release: Path, destination: Path) -> None:
     files = re.findall(r'"(src/content/[^"]+\.js)"', action)
     if not files or files[0] != "src/content/namespace.js" or files[-1] != "src/content/content-script.js":
         raise AssertionError("Cannot reconstruct the pinned production reader injection order")
+    fast_qa = os.environ.get("FIREFOX_TTS_QA_FAST") == "1"
     bridge = """/* QA-ONLY: not bundled in the released extension */\n"""
+    bridge += "const FIREFOX_TTS_QA_FAST = " + json.dumps(fast_qa) + ";\n"
     bridge += """browser.tabs.onUpdated.addListener((tabId, change, tab) => {
       if (change.status !== "complete" ||
           !tab.url?.startsWith("http://127.0.0.1:")) return;
       void (async () => {
+        if (FIREFOX_TTS_QA_FAST) {
+          await browser.storage.local.set({ rate: 2, sentencePauseMs: 0 });
+        }
         if (!tab.url.includes("qaFallback=1")) {
           // Observe real Gecko media events without changing play semantics.
           // This probe exists only in the QA-only localhost package.
@@ -100,6 +105,33 @@ def qa_package(release: Path, destination: Path) -> None:
           files: ["src/content/content.css"] });
         await browser.scripting.executeScript({ target: { tabId },
           files: FILE_LIST });
+        if (FIREFOX_TTS_QA_FAST) {
+          await browser.scripting.executeScript({
+            target: { tabId },
+            func: () => {
+              const reader = globalThis.__EDGE_TTS_READER__?.app;
+              const speech = reader?.speech;
+              const original = speech?.handleLinuxPiperOffscreenEvent;
+              if (typeof original !== "function") return;
+              const trace = [];
+              speech.handleLinuxPiperOffscreenEvent = function(message) {
+                const event = message?.event || {};
+                if (["started", "ended", "boundary"].includes(event.type)) {
+                  trace.push({
+                    at: performance.now(),
+                    type: event.type,
+                    id: message.playbackId,
+                    index: event.index ?? null
+                  });
+                  // Event timing only. Do not capture page text.
+                  document.documentElement.dataset.firefoxTtsQaFastTrace =
+                    JSON.stringify(trace.slice(-120));
+                }
+                return original.call(this, message);
+              };
+            }
+          });
+        }
         await browser.tabs.sendMessage(tabId, { type: "EDGE_TTS_TOGGLE_V2" });
         // The event is QA-only. It relays a test-triggered request from an
         // ordinary page into the extension, never reading page content.
@@ -275,7 +307,8 @@ def qa_package(release: Path, destination: Path) -> None:
 
 def install_fake_native_host(root: Path) -> None:
     """Register a fake Piper on isolated HOME; never run a real model."""
-    short_audio = os.environ.get("FIREFOX_TTS_QA_AUTOPLAY") == "1"
+    short_audio = os.environ.get("FIREFOX_TTS_QA_AUTOPLAY") == "1" or
+        os.environ.get("FIREFOX_TTS_QA_FAST") == "1"
     (root / "piper.py").write_text(
         FAKE_PIPER.replace('count = 25 if "cancel" in text else 4',
                            'count = 25 if "cancel" in text else ' +
@@ -317,7 +350,8 @@ def main() -> None:
         raise RuntimeError("Runner must already provide Firefox and Geckodriver")
     with tempfile.TemporaryDirectory(prefix="firefox-tts-content-qa-") as tmp:
         root = Path(tmp)
-        autoplay_qa = os.environ.get("FIREFOX_TTS_QA_AUTOPLAY") == "1"
+        autoplay_qa = os.environ.get("FIREFOX_TTS_QA_AUTOPLAY") == "1" or os.environ.get("FIREFOX_TTS_QA_FAST") == "1"
+        fast_qa = os.environ.get("FIREFOX_TTS_QA_FAST") == "1"
         os.environ.update({
             "HOME": str(root), "XDG_DATA_HOME": str(root / "share"),
             "XDG_CONFIG_HOME": str(root / "config"), "XDG_CACHE_HOME": str(root / "cache")
@@ -400,7 +434,24 @@ def main() -> None:
                     assert state.get("useExt") is True, state
                     assert state.get("boundarySerial", 0) > 0, state
                     assert state.get("paused") is not True, state
-                    print("PASS: Normal Firefox autoplay policy starts Piper automatically and plays consecutive sentences")
+                    if fast_qa:
+                        trace_json = base.eventually(lambda: base.execute(host, session,
+                            "return document.documentElement.dataset.firefoxTtsQaFastTrace"),
+                            timeout=10, explanation="High-speed event timings were not recorded")
+                        trace = json.loads(trace_json)
+                        starts = [e for e in trace if e["type"] == "started"]
+                        ends = [e for e in trace if e["type"] == "ended"]
+                        assert len(starts) >= 2 and len(ends) >= 1, trace
+                        gap_ms = starts[1]["at"] - ends[0]["at"]
+                        assert gap_ms >= 0, trace
+                        print(f"2x zero-pause Firefox transport handoff: {gap_ms:.1f}ms", flush=True)
+                        # This bound catches substantial scheduling stalls
+                        # without assuming headless CI replicates user audio.
+                        assert gap_ms < 300, (gap_ms, trace)
+                        assert state.get("boundarySerial", 0) > 0, state
+                        print("PASS: 2x zero-pause synthetic Piper handoff and boundary progression")
+                    else:
+                        print("PASS: Normal Firefox autoplay policy starts Piper automatically and plays consecutive sentences")
                     return
                 base.eventually(lambda: base.execute(host, session,
                     "return document.documentElement.dataset.firefoxTtsQaMediaAttempted === 'true'"),
