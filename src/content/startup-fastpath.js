@@ -38,12 +38,10 @@
     const textModel = root.EdgeTtsExtension?.TextModel;
     const speechModule = root.EdgeTtsExtension?.SpeechEngine;
     const firstBlockNearViewport = textModel?.firstBlockNearViewport;
-    const isNaturalVoice = speechModule?.isNaturalVoice;
-    const isWinNaturalVoice = (voice) => voice?.__edgeTtsSource === "win-natural";
     const isLinuxPiperVoice = (voice) => voice?.__edgeTtsSource === "linux-piper";
     const originalHandleSpeechStart = prototype.handleSpeechStart;
 
-    if (typeof firstBlockNearViewport !== "function" || typeof isNaturalVoice !== "function") {
+    if (typeof firstBlockNearViewport !== "function") {
       return false;
     }
 
@@ -76,38 +74,21 @@
       this.toolbar.mount();
       this.toolbar.setStatus("Starting…");
 
-      // Settings and the extension-level legacy catalog are part of ordinary
-      // startup. WIN-NATURAL is explicitly optional: helper discovery must
-      // never hold the reader in Starting… or prevent the existing online /
-      // legacy transports from working. Its voice-change notification refreshes
-      // the toolbar whenever the native catalog arrives.
+      // Only Piper is permitted. Resolve user settings and native local voices
+      // before selecting a voice; never call a browser/remote voice catalog.
       const settingsReady = this.loadSettings();
-      const extensionVoicesReady = this.speech.refreshExtensionVoices?.() || Promise.resolve();
-
-      // Piper is a first-class startup backend on Linux. Unlike optional
-      // Windows Natural discovery, its catalog must settle before the initial
-      // voice choice when Piper is the saved/default backend; otherwise the first
-      // auto-start races discovery and can stall until Stop -> Play.
       const linuxPiperVoicesReady =
         this.speech.refreshLinuxPiperVoices?.() || Promise.resolve();
       const pronunciationReady =
         this.speech.refreshPronunciationConfig?.() || Promise.resolve();
 
-      const winNaturalVoicesReady = this.speech.refreshWinNaturalVoices?.() || Promise.resolve();
-      Promise.resolve(winNaturalVoicesReady).catch(() => {});
-
-      const naturalVoicesReady = this.speech.waitForVoices(
+      const piperVoicesReady = this.speech.waitForVoices(
         350,
-        (voices) => voices.some((voice) =>
-          isNaturalVoice(voice) ||
-          isWinNaturalVoice(voice) ||
-          isLinuxPiperVoice(voice)
-        )
+        (voices) => voices.some(isLinuxPiperVoice)
       );
 
       await Promise.all([
         settingsReady,
-        extensionVoicesReady,
         linuxPiperVoicesReady,
         pronunciationReady
       ]);
@@ -128,15 +109,11 @@
 
       if (
         !this.selectedVoice &&
-        !this.voices.some((voice) =>
-          isNaturalVoice(voice) ||
-          isWinNaturalVoice(voice) ||
-          isLinuxPiperVoice(voice)
-        )
+        !this.voices.some(isLinuxPiperVoice)
       ) {
         this.toolbar.setStatus("Loading voice…");
         const voiceWaitStartedAt = now();
-        await naturalVoicesReady;
+        await piperVoicesReady;
         trace.extraVoiceWaitMs = now() - voiceWaitStartedAt;
         if (!this.enabled || this.quitRequested) {
           trace.active = false;
@@ -146,7 +123,6 @@
       }
 
       if (
-        this.prefersLinuxPiper?.() &&
         !isLinuxPiperVoice(this.selectedVoice)
       ) {
         trace.active = false;
@@ -154,7 +130,7 @@
         this.paused = true;
         this.toolbar.setPaused(true);
         this.toolbar.setStatus(
-          "Paused — Piper voice unavailable; Online fallback blocked"
+          "Paused — local Piper voice unavailable"
         );
         return;
       }
@@ -170,10 +146,10 @@
       this.currentBlockIndex = startBlock.index;
       this.currentSegmentIndex = 0;
       trace.prepMs = now() - startedAt;
-      trace.voiceName = this.selectedVoice?.name || "browser default";
+      trace.voiceName = this.selectedVoice?.name || "no Piper voice";
 
       console.debug(
-        `Edge Natural TTS startup prepared in ${round(trace.prepMs)}ms ` +
+        `Firefox TTS startup prepared in ${round(trace.prepMs)}ms ` +
           `(model ${round(trace.modelMs)}ms, extra voice wait ${round(trace.extraVoiceWaitMs)}ms).`
       );
 
@@ -214,7 +190,7 @@
       if (this.toolbar?.status) {
         this.toolbar.status.title = `Reading · ${summary} · ${trace.voiceName}`;
       }
-      console.info(`Edge Natural TTS startup: ${summary} · ${trace.voiceName}`);
+      console.info(`Firefox TTS startup: ${summary} · ${trace.voiceName}`);
       return result;
     };
 
