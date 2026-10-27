@@ -53,7 +53,7 @@ class EdgeFadeTest(unittest.TestCase):
         host.taper_pcm_edges(pcm, 16000, 2, 1, 0)
         self.assertEqual(pcm, before)
         with self.assertRaisesRegex(ValueError, "incomplete PCM"):
-            host.taper_pcm_edges(bytearray(b"\\x01"), 16000, 2, 1)
+            host.taper_pcm_edges(bytearray(b"\x01"), 16000, 2, 1)
 
 
 if __name__ == "__main__":
