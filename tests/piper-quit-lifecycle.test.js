@@ -93,6 +93,30 @@ function harness() {
   return { Engine, play, players, urls };
 }
 
+test("consecutive Piper sentences reuse one tab media element without retaining old WAVs", async () => {
+  const h = harness();
+  const engine = new h.Engine({});
+  const first = h.play(engine, 0);
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.equal(first.paused, false);
+  assert.equal(h.players.length, 1);
+  assert.equal(h.urls.size, 1);
+
+  // Replace the completed sentence source in the same media session.
+  const second = h.play(engine, 1);
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.equal(second, first, "Firefox should keep one unlocked audio element");
+  assert.equal(h.players.length, 1, "no new decoder for every sentence");
+  assert.equal(h.urls.size, 1, "previous sentence WAV object URL was revoked");
+  assert.equal(second.paused, false);
+
+  engine.cancel();
+  assert.equal(second.paused, true);
+  assert.equal(h.urls.size, 0);
+});
+
 for (const method of ["cancel", "abandon"]) {
   test(`Piper ${method} stops actual tab audio rather than just forgetting its session`, async () => {
     const h = harness();
