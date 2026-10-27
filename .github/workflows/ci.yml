@@ -24,3 +24,7 @@ jobs:
         run: node --test
       - name: Native Python source syntax
         run: python3 -m py_compile native/linux-piper/linux_piper_host.py
+      - name: Native installer shell syntax
+        run: bash -n native/linux-piper/install-native-host.sh native/linux-piper/uninstall-native-host.sh
+      - name: Native framing and disposable-home isolation tests
+        run: python3 -m unittest discover -s tests -p 'test_*.py' -v
