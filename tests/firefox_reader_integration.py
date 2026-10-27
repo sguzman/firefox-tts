@@ -178,6 +178,16 @@ def main() -> None:
                 print("PASS: Real Firefox synthetic voice catalog and speed controls")
                 print("PASS: Actual Firefox installed modules, built reader and mounted toolbar")
 
+                original_window = base.webdriver(host, session, "GET", "window")
+                original_handles = set(base.webdriver(host, session, "GET", "window/handles"))
+                base.execute(host, session,
+                    "document.querySelector('#edge-tts-toolbar [data-edge-tts-action=pronunciation-options]').click()")
+                options_handles = base.eventually(
+                    lambda: list(set(base.webdriver(host, session, "GET", "window/handles"))
+                                 - original_handles),
+                    timeout=12, explanation="Firefox did not open the pronunciation options tab")
+                options_window = options_handles[0]
+                base.webdriver(host, session, "POST", "window", {"handle": original_window})
                 base.execute(host, session,
                     "document.querySelector('#editor').focus(); return document.activeElement.id")
                 base.execute(host, session,
@@ -189,11 +199,8 @@ def main() -> None:
                     "return document.querySelector('#edge-tts-toolbar') === null"),
                     timeout=8, explanation="Quit did not remove toolbar in real Firefox")
                 print("PASS: Real Firefox synthetic reader stop/quit did not steal editor focus")
-                options_url = base.execute(host, session,
-                    "return document.documentElement.dataset.firefoxTtsQaOptions")
-                assert options_url.startswith("moz-extension://") and options_url.endswith(
-                    "/src/options/pronunciation.html"), options_url
-                base.webdriver(host, session, "POST", "url", {"url": options_url})
+                base.webdriver(host, session, "POST", "window", {"handle": options_window})
+                assert "Pronunciation" in base.execute(host, session, "return document.title")
                 base.eventually(lambda: base.execute(host, session,
                     "return Boolean(document.querySelector('#preview-spoken')?.value)"),
                     timeout=12, explanation="Firefox options page failed to load pronunciation preview")
