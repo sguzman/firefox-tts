@@ -37,6 +37,12 @@ def qa_package(release: Path, destination: Path) -> None:
       if (change.status !== "complete" ||
           !tab.url?.startsWith("http://127.0.0.1:")) return;
       void (async () => {
+        if (tab.url.includes("qaOptions=1")) {
+          // QA-only trigger: Firefox disallows direct moz-extension://
+          // navigation via WebDriver. Use the supported browser API.
+          await browser.runtime.openOptionsPage();
+          return;
+        }
         if (!tab.url.includes("qaFallback=1")) {
           // Observe real Gecko media events without changing play semantics.
           // This probe exists only in the QA-only localhost package.
@@ -377,18 +383,25 @@ def main() -> None:
                     assert theme["light"][key] != theme["dark"][key], (key, theme)
                 print("PASS: Firefox HUD follows site light/dark and omits options shortcut")
 
-                # The options page is registered by manifest.options_ui; navigate
-                # there separately rather than opening it from reader controls.
+                # The options are reached through the browser API that
+                # about:addons calls, not via the removed HUD shortcut.
                 options_url = base.execute(host, session,
                     "return document.documentElement.dataset.firefoxTtsQaOptions")
                 assert options_url.startswith("moz-extension://"), options_url
                 original_window = base.webdriver(host, session, "GET", "window")
+                original_handles = set(base.webdriver(host, session, "GET", "window/handles"))
                 opened = base.webdriver(host, session, "POST", "window/new", {"type": "tab"})
-                options_window = opened["handle"]
-                base.webdriver(host, session, "POST", "url", {"url": options_url})
+                base.webdriver(host, session, "POST", "url",
+                               {"url": f"http://127.0.0.1:{server.server_address[1]}/index.html?qaOptions=1"})
+                options_handles = base.eventually(
+                    lambda: list(set(base.webdriver(host, session, "GET", "window/handles"))
+                                 - original_handles - {opened["handle"]}),
+                    timeout=12, explanation="Firefox browser API did not open extension options")
+                options_window = options_handles[0]
+                base.webdriver(host, session, "POST", "window", {"handle": options_window})
                 base.eventually(lambda: base.execute(host, session,
                     "return Boolean(document.querySelector('#preview-source'))"),
-                    timeout=12, explanation="Firefox options page unavailable outside HUD")
+                    timeout=12, explanation="Firefox extension options did not render")
                 base.webdriver(host, session, "POST", "window", {"handle": original_window})
                 base.execute(host, session,
                     "document.querySelector('#editor').focus(); return document.activeElement.id")
