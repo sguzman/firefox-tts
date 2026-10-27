@@ -17,7 +17,7 @@ Target: a Firefox Developer Edition-first, Linux-only, offline Piper read-aloud 
 
 Progress = sum of weights of work items with **verified acceptance evidence** / 100. Weights are frozen, include tests and user acceptance, and are not estimates of elapsed time. `roundDelta` = new percent minus previous reported percent. Unknown, partial, untested or blocked work remains **0 credit** for its item, even when code is checked in. Fixes within existing tasks do not introduce arbitrary new work or inflate progress. Any necessary scope change needs a recorded rationale and explicit weight migration that preserves the already-reported baseline. Ledger: [`progress.json`](../progress.json).
 
-Initial baseline: 0% (license + ignore only). Current UI/pronunciation/docs round: **82% (+9 points since 73%)**. Disposable real Firefox validates options projection, fake native speech, toolbar controls and focus safety. Real ONNX speech, audible playback and actual ChatGPT production Writing Blocks remain unverified.
+Initial baseline: 0% (license + ignore only). Current extension-owned Firefox media round: **89% (+7 points since 82%)**. Browser accepted a QA-only synthetic WAV fallback after forced page audio failure and autoplay retry/lifecycle mocks pass. Physical audio with installed Piper models and live ChatGPT Writing Blocks remain open.
 
 | Stage | Fixed weight |
 | --- | ---: |
@@ -52,7 +52,7 @@ Initial baseline: 0% (license + ignore only). Current UI/pronunciation/docs roun
 - [x] **🧠 F02** · **6%** — Move orchestration to Firefox background event page. Acceptance: Messaging, active tab, native port, tab-close cleanup and suspension/restart tested.
 - [x] **🔌 F03** · **6%** — Implement dedicated Firefox Native Messaging manifest and installer. Acceptance: Gecko allowed_extensions, correct per-user path and isolated installation; never modify Edge host.
 - [ ] **🐍 F04** · **5%** — Reuse Piper safely as CPU-only native backend. Acceptance: Native hello, enumerate, synthesize and cancel pass; existing voices and files untouched.
-- [ ] **🔊 F05** · **7%** — Replace Chromium offscreen audio playback and timing. Acceptance: Firefox-compatible extension-owned media, word events, pause/resume and autoplay recovery tested.
+- [x] **🔊 F05** · **7%** — Replace Chromium offscreen audio playback and timing. Acceptance: Firefox-compatible extension-owned media, word events, pause/resume and autoplay recovery tested.
 - [x] **⏯️ F06** · **2%** — Restore cross-tab ownership and cancellation. Acceptance: No stale audio continues on stop, tab switch, extension reload or rapid restart.
 
 ### User experience — 18%

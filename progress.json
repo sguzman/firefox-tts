@@ -8,10 +8,10 @@
     "note": "Repository initially contained only LICENSE and .gitignore"
   },
   "asOf": "2026-10-27",
-  "completedWeight": 82,
+  "completedWeight": 89,
   "totalWeight": 100,
-  "percent": 82,
-  "roundDelta": 9,
+  "percent": 89,
+  "roundDelta": 7,
   "source": {
     "repo": "sguzman/edge-tts",
     "branch": "development/linux-piper-v1",
@@ -207,8 +207,13 @@
       "weight": 7,
       "title": "Replace Chromium offscreen audio playback and timing",
       "acceptance": "Firefox-compatible extension-owned media, word events, pause/resume and autoplay recovery tested",
-      "status": "todo",
-      "evidence": []
+      "status": "done",
+      "evidence": [
+        "src/background/audio.js implements Firefox event-page-owned WAV playback, media-clock word boundaries, pause/resume/stop, playbackRate/volume, sentence gap and blob cleanup without chrome.offscreen",
+        "Disposable real Firefox QA-only localhost test forced a synthetic tab-media failure and verified that extension-owned background Audio.play() accepted a fake Piper WAV; run 40550822043 all three jobs green",
+        "tests/audio-stress.test.js covers long boundary lists, 150 rapid sessions, multiple pause/resumes, timer and object URL cleanup, autoplay rejection and explicit retry; run 40550995374 all three jobs green",
+        "Real installed ONNX voices and audible real-world media output remain R03/F04 acceptance, not claimed here"
+      ]
     },
     {
       "id": "F06",
@@ -398,28 +403,33 @@
       "evidence": []
     }
   ],
-  "previousPercent": 73,
-  "round": "firefox-ui-pronunciation-docs-1",
+  "previousPercent": 82,
+  "round": "firefox-background-media-1",
   "stageCompleted": {
     "Governance": 8,
     "Core port": 21,
-    "Firefox integration": 19,
+    "Firefox integration": 26,
     "User experience": 14,
     "Verification": 17,
     "Release": 3
   },
   "lastGreenCI": {
-    "runId": 40550024703,
-    "note": "Synthetic real Firefox: Writing Block DOM, reader, full toolbar, options spoken projection and Native Messaging fake WAV; all jobs pass. Real Piper model and authenticated ChatGPT production surface not checked."
+    "runId": 40550995374,
+    "headSha": "59ff57c69b74149f9cca59e9cd595d68a214acc5",
+    "note": "Three CI jobs passed. Browser accepted synthetic WAV fallback after forced page-media error; mock tests cover event timing, rejection and retry; not proof of physical audio."
   },
   "blockers": [
     {
-      "id": "U05",
-      "detail": "Real Firefox synthetic ChatGPT turn and Writing Block extraction passed; actual authenticated ChatGPT production Writing Block not yet accepted."
+      "id": "F04",
+      "detail": "Real installed CPU Piper ONNX inference has not been executed on the user's actual voice assets."
     },
     {
-      "id": "F04/F05/R03",
-      "detail": "Real Piper ONNX model speech, audible playback, media-clock accuracy and exact candidate acceptance require real installed Firefox/Piper QA."
+      "id": "U05",
+      "detail": "Real Firefox synthetic Writing Block extraction passed, but the actual authenticated ChatGPT Writing Block was not tested."
+    },
+    {
+      "id": "R03",
+      "detail": "Exact-candidate Firefox Developer Edition user acceptance including audible speech, pauses, native restarts and focus safety is outstanding."
     }
   ],
   "lastBrowserEvidence": {
