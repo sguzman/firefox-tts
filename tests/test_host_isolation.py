@@ -95,6 +95,20 @@ class PiperIsolationTest(unittest.TestCase):
         self.assertTrue(by_type["pronunciationConfigSaved"]["path"].startswith(str(self.data / "firefox-tts")))
         self.assertEqual(self.edge_sentinel.read_text(), '{"edge": "untouched"}\n')
 
+    def test_malformed_native_frames_fail_visibly_without_crashing(self):
+        malformed = [
+            struct.pack("<I", 0),
+            struct.pack("<I", 16 * 1024 * 1024 + 1),
+            struct.pack("<I", 2) + b"[{",
+        ]
+        for packet in malformed:
+            with self.subTest(packet=packet[:8]):
+                process = subprocess.run([sys.executable, str(HOST)], input=packet,
+                                         env=self.env, capture_output=True, timeout=8, check=True)
+                errors = parse_frames(process.stdout)
+                self.assertEqual(errors[0]["type"], "error")
+                self.assertTrue(errors[0]["message"])
+
     def test_installer_idempotent_without_pip_or_real_browser(self):
         # Fake only the distribution metadata; no Piper import or inference.
         dist = self.home / "fake-site" / "piper_tts-1.8.0.dist-info"
