@@ -82,7 +82,14 @@ test("Superseding old playback prevents stale owner emissions and cleans media",
   assert.equal(h.player.getSession().id, "new");
   assert.equal(h.player.getSession().tabId, 4);
   assert.equal(h.player.stopTab(3), false);
-  assert.ok(!h.sent.some(e=>e.tabId===3 && e.message.event?.type==="boundary"));
+  // Initial boundary for the *previous* owner is now intentionally sent on
+  // audio start; after preemption its count must remain unchanged.
+  const formerOwnerCount = h.sent.filter(e => e.tabId === 3 &&
+    e.message.event?.type === "boundary").length;
+  h.audio.currentTime = .8;
+  h.tickAll();
+  assert.equal(h.sent.filter(e => e.tabId === 3 &&
+    e.message.event?.type === "boundary").length, formerOwnerCount);
   assert.ok(h.sent.some(e=>e.tabId===4 && e.message.event?.type==="boundary"));
   assert.equal(h.player.stopTab(4), true);
   assert.equal(h.urls.size, 0);
@@ -93,8 +100,9 @@ test("Long synthetic boundaries are bounded per tick; pausing disarms active clo
   const offsets = Array.from({ length: 4000 }, (_, index) => index / 100);
   await h.player.handle(msg("long", h.audioChunks, offsets), 9);
   h.audio.currentTime = 10;
+  const beforeTick = h.sent.filter(e => e.message.event?.type === "boundary").length;
   h.tickAll();
-  const oneTick = h.sent.filter(e => e.message.event?.type === "boundary").length;
+  const oneTick = h.sent.filter(e => e.message.event?.type === "boundary").length - beforeTick;
   assert.ok(oneTick <= 40, "one event-loop tick may emit at most 40 word events");
   for (let i = 0; i < 30; i++) {
     const paused = await h.player.handle({ type:"EDGE_TTS_PIPER_OFFSCREEN_PAUSE",
