@@ -57,7 +57,7 @@
         row.className = "edge-tts-row";
         row.dataset.edgeTtsVolumeRow = "true";
         row.innerHTML = `
-          <label class="edge-tts-rate-label" title="Natural/direct audio can boost above 100%. Local Windows voices are limited to 100% by Web Speech.">
+          <label class="edge-tts-rate-label" title="Piper playback volume (0–100%)">
             Volume
             <input data-edge-tts-volume type="range" min="0" max="200" step="5" value="100" aria-label="Speech volume">
             <output data-edge-tts-volume-value>100%</output>

@@ -284,9 +284,6 @@
       return bridge.player?.handle?.(message, tabId) ||
         { accepted: false, error: "Firefox background media player unavailable." };
     }
-    // Old Windows transport is unsupported, not silently redirected.
-    if (type === "EDGE_TTS_LOCAL_VOICES" || type === "EDGE_TTS_WIN_NATURAL_VOICES")
-      return { voices: [] };
     return undefined;
   }
   browser.runtime.onMessage.addListener((message, sender) => {

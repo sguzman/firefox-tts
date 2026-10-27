@@ -2,7 +2,7 @@
   const SESSION_REVISION = 18;
   const extension = root.EdgeTtsExtension;
   if (!extension?.Reader?.ReaderApp) {
-    console.error("Edge Natural TTS reader modules did not initialize.");
+    console.error("Firefox TTS reader modules did not initialize.");
     return;
   }
 
@@ -135,24 +135,6 @@
     ) {
       app?.suspendForOtherTab?.();
       sendResponse({ accepted: true });
-      return false;
-    }
-
-    if (
-      message?.type === "EDGE_TTS_LOCAL_EVENT_V2" ||
-      message?.type === "EDGE_TTS_LOCAL_EVENT"
-    ) {
-      const accepted = app?.speech?.handleChromeTtsEvent?.(message) === true;
-      sendResponse({ accepted });
-      return false;
-    }
-
-    if (
-      message?.type === "EDGE_TTS_WIN_NATURAL_EVENT_V2" ||
-      message?.type === "EDGE_TTS_WIN_NATURAL_EVENT"
-    ) {
-      const accepted = app?.speech?.handleWinNaturalEvent?.(message) === true;
-      sendResponse({ accepted });
       return false;
     }
 

@@ -67,9 +67,9 @@
       element.setAttribute("aria-label", "Edge Natural TTS controls");
       element.innerHTML = `
         <div class="edge-tts-header" data-edge-tts-drag-handle>
-          <strong>Edge TTS</strong>
+          <strong>Firefox TTS</strong>
           <span data-edge-tts-status>Starting…</span>
-          <button type="button" data-edge-tts-action="quit" title="Quit Edge TTS for this tab" aria-label="Quit Edge TTS for this tab">Quit</button>
+          <button type="button" data-edge-tts-action="quit" title="Quit Firefox TTS for this tab" aria-label="Quit Firefox TTS for this tab">Quit</button>
           <button type="button" class="edge-tts-icon-button" data-edge-tts-action="minimize" title="Minimize controls" aria-label="Minimize controls">−</button>
         </div>
         <div class="edge-tts-row edge-tts-transport-row">
