@@ -37,6 +37,34 @@ def qa_package(release: Path, destination: Path) -> None:
       if (change.status !== "complete" ||
           !tab.url?.startsWith("http://127.0.0.1:")) return;
       void (async () => {
+        if (!tab.url.includes("qaFallback=1")) {
+          // Observe real Gecko media events without changing play semantics.
+          // This probe exists only in the QA-only localhost package.
+          await browser.scripting.executeScript({
+            target: { tabId },
+            func: () => {
+              const original = HTMLMediaElement.prototype.play;
+              HTMLMediaElement.prototype.play = function(...args) {
+                if (this.tagName === "AUDIO") {
+                  const root = document.documentElement;
+                  root.dataset.firefoxTtsQaMediaAttempted = "true";
+                  this.addEventListener("playing", () => {
+                    root.dataset.firefoxTtsQaMediaPlaying = "true";
+                  }, { once: true });
+                  this.addEventListener("timeupdate", () => {
+                    const previous = Number(root.dataset.firefoxTtsQaMediaTime || 0);
+                    root.dataset.firefoxTtsQaMediaTime =
+                      String(Math.max(previous, Number(this.currentTime) || 0));
+                  });
+                  this.addEventListener("ended", () => {
+                    root.dataset.firefoxTtsQaMediaEnded = "true";
+                  }, { once: true });
+                }
+                return original.apply(this, args);
+              };
+            }
+          });
+        }
         if (tab.url.includes("qaFallback=1")) {
           await browser.scripting.executeScript({
             target: { tabId },
@@ -268,6 +296,13 @@ def main() -> None:
                 assert "Private composer text must not be read." not in all_prose, writing
                 assert "Hidden status announcement." not in all_prose, writing
                 print("PASS: Real Firefox extracts ChatGPT assistant Writing Blocks but excludes composer/status")
+                base.eventually(lambda: base.execute(host, session,
+                    "return document.documentElement.dataset.firefoxTtsQaMediaAttempted === 'true'"),
+                    timeout=16, explanation="Real Firefox reader never attempted playback of synthesized WAV")
+                base.eventually(lambda: base.execute(host, session,
+                    """return Number(document.documentElement.dataset.firefoxTtsQaMediaTime || 0) > 0.12"""),
+                    timeout=12, explanation="Real Firefox Audio element did not advance its playback clock")
+                print("PASS: Actual Gecko audio element decoded synthetic Piper WAV and advanced media time")
                 print("PASS: Firefox Native Messaging discovered synthetic CPU Piper voice")
                 # Exercise live settings without modifying any real profile.
                 speed = base.execute(host, session,
