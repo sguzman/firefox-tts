@@ -345,7 +345,8 @@
         "tests/audio-stress.test.js verifies 150 rapid play/stop cycles, zero leaked blobs or timers and bounded long-text boundary events",
         "Repeated pause/resume and old-session suppression, fresh event-page scope and native disconnect/timeout/race exercised in synthetic tests",
         "GitHub Actions run 40547884795 green; real sustained playback remains the F05/R03 gate",
-        "tests/piper-quit-lifecycle.test.js proves one tab media element is reused across WAVs and old one stopped on cancel/abandon; tests/audio-stress.test.js verifies a 32ms gain ramp at >=1.8x releases timers on Quit and leaves Resume audible. CI 40579289268."
+        "tests/piper-quit-lifecycle.test.js proves one tab media element is reused across WAVs and old one stopped on cancel/abandon; tests/audio-stress.test.js verifies a 32ms gain ramp at >=1.8x releases timers on Quit and leaves Resume audible. CI 40579289268.",
+        "CI 40585402522 passed 2x/0ms isolated Gecko handoff benchmark (8.0ms synthetic), source boundary-zero immediate, 16ms high-speed media timing; tests ensure 40 word events max/tick and no post-preemption event leakage."
       ]
     },
     {
@@ -417,12 +418,13 @@
         "User confirmed Firefox Dev Edition temporary addon launches HUD, Preferences page displays, and actual installed Amy voice audibly speaks; also reported unexpected initial pause, single-sentence stall, and intermittent 1.9x+ popping on earlier candidates.",
         "Fix candidate 96ec1aa: content-site autoplay NotAllowed falls back automatically to extension-owned player; subsequent sentences stay on same transport. CI uses Firefox normal autoplay policy instead of silently disabling it.",
         "Real Firefox QA verified >=2 consecutive WAVs, nonzero reader boundaries, and Stop/Quit/reopen with no overlapping HTMLAudioElements; post-decoder 32ms high-rate volume attack and preserved audio element have synthetic regression tests.",
-        "Pending: user's live listening confirmation that 96ec1aa fixes initial start, entire text progression and 1.9x popping, plus focus and final acceptance."
+        "Pending: user's live listening confirmation that 96ec1aa fixes initial start, entire text progression and 1.9x popping, plus focus and final acceptance.",
+        "2026-10-27 user confirmed 2x sentence starts laggy and word highlight trails after previous high-speed mitigation. Candidate e68a435 fixes dropped first-word boundary and decreases high-speed polling 50→16ms, tested in Gecko; no real acoustic confirmation."
       ]
     }
   ],
   "previousPercent": 94,
-  "round": "firefox-normal-autoplay-and-high-speed-output-mitigation-1",
+  "round": "high-rate-first-boundary-and-gecko-handoff-benchmark-1",
   "stageCompleted": {
     "Governance": 8,
     "Core port": 21,
@@ -432,29 +434,29 @@
     "Release": 3
   },
   "lastGreenCI": {
-    "runId": 40579289268,
-    "headSha": "96ec1aaeaaceed14528517d61466575d608d0d90",
-    "note": "All 3 jobs green on retry after isolated headless Firefox startup timeout. Real Gecko QA additionally verified automatic playback across >=2 sentence WAVs under normal media.autoplay.default=1, without Resume; synthetic only. Separate tests verified Stop/Quit/reopen, tab audio reuse, and short high-rate output ramp. User audible acceptance of this version still pending."
+    "runId": 40585402522,
+    "headSha": "e68a435a1a934517974ff55746d1be8e2ae666ee",
+    "note": "3 jobs green on retry; first smoke attempt timed out in disposable Firefox startup (runner, not reader). QA-only Gecko normal-autoplay and 2x/0ms sentence pause passed. Synthetic Firefox-owned audio measured 8.0ms between ended and next started events; it excludes real ONNX inference and default 300ms configured pause. Native word boundaries remain approximate."
   },
   "blockers": [
     {
       "id": "U05",
-      "detail": "Actual authenticated ChatGPT Writing Block and composer focus behavior remain live-unverified; disposable Gecko synthetic fixture passed."
+      "detail": "Actual authenticated ChatGPT Writing Block extraction and typing focus behavior remain unverified by live user acceptance. Isolated Gecko synthetic fixture passes."
     },
     {
       "id": "R03",
-      "detail": "User previously confirmed real voice audible and Firefox HUD/options but reported initial pause, single sentence then stall, and pop at high speed. Fix candidate 96ec1aa passes automated Gecko normal-autoplay multi-sentence, cleanup and high-speed ramp tests; live listening acceptance remains open."
+      "detail": "User still heard sentence-start lag/popping at 2x in earlier candidate. Gecko synthetic at 2x + 0ms sentence pause measured 8.0ms backend handoff, but default setting is 300ms pause and real ONNX audio timing is unmeasured. Latest immediate boundary/high-speed clock fix must be assessed in user's Firefox."
     }
   ],
   "lastBrowserEvidence": {
-    "runId": 40579289268,
+    "runId": 40585402522,
     "passed": [
-      "Disposable real Firefox loads QA-only XPI and native synthetic voice",
-      "Gecko normal autoplay policy: fallback automatically plays >=2 consecutive sentence WAVs without Resume and emits word boundaries",
-      "Gecko media timing and Stop/Quit/reopen with no duplicate player",
-      "Speed, batch, sentence pause, pronunication options test and theme; all CI green"
+      "Real Gecko synthetic CPU Piper and reader interaction in disposable profile",
+      "2x/0ms sentence pause: 8.0ms measured event-to-event transport handoff in synthetic Firefox, not real voice hardware",
+      "Boundary 0 delivered at start; 2x boundary clock 16ms instead of 50ms in background",
+      "No overlapping audio after Quit/reopen and normal autoplay fallback sustained for multiple sentences"
     ],
-    "note": "QA-only fake Piper and headless mock audio sink, no real user page data; separate local user validation required."
+    "note": "Actual logged-in ChatGPT and user's acoustic output not observed; user's prior 2x pop/lag reports remain open and do not count as acceptance."
   },
   "realModelEvidence": {
     "date": "2026-10-27",
