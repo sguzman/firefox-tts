@@ -9,6 +9,33 @@
   let session = null;
   let tickTimer = null;
   let pauseTimer = null;
+  // Firefox's pitch-preserving high-speed playback can emit a transient at
+  // the beginning of a newly loaded WAV, *after* the source PCM edge taper.
+  // A 32 ms post-decoder volume ramp masks that transient without changing
+  // model output, audio length, pitch or the media clock.
+  let attackTimer = null;
+  function clearAttack() {
+    if (attackTimer !== null) clearInterval(attackTimer);
+    attackTimer = null;
+  }
+  function startAttack(current) {
+    clearAttack();
+    if (current.playbackRate < 1.8) {
+      audio.volume = current.targetVolume;
+      return;
+    }
+    audio.volume = 0;
+    let step = 0;
+    attackTimer = setInterval(() => {
+      if (session !== current || current.paused) {
+        clearAttack();
+        return;
+      }
+      step += 1;
+      audio.volume = Math.min(1, current.targetVolume * step / 4);
+      if (step >= 4) clearAttack();
+    }, 8);
+  }
 
   function emit(current, event) {
     if (!current || !Number.isInteger(current.tabId)) return;
@@ -48,6 +75,7 @@
     session = null;
     endTick();
     clearPause();
+    clearAttack();
     audio.onplaying = null;
     audio.onended = null;
     audio.onerror = null;
@@ -95,16 +123,23 @@
         id, tabId, url, boundaries,
         nextBoundary: boundaries.findIndex(offset => offset > checkpoint + 0.025),
         paused: false,
+        playbackRate: Math.min(4, Math.max(0.25, Number(message.playbackRate) || 1)),
+        targetVolume: Math.min(1, Math.max(0, Number(message.volume ?? 1))),
+        attackStarted: false,
         sentencePauseMs: Math.min(1200, Math.max(0, Number(message.sentencePauseMs) || 0))
       };
       if (session.nextBoundary < 0) session.nextBoundary = boundaries.length;
       const current = session;
       audio.src = url;
-      audio.playbackRate = Math.min(4, Math.max(0.25, Number(message.playbackRate) || 1));
-      audio.volume = Math.min(1, Math.max(0, Number(message.volume ?? 1)));
+      audio.playbackRate = current.playbackRate;
+      audio.volume = current.playbackRate >= 1.8 ? 0 : current.targetVolume;
       if (checkpoint) audio.currentTime = checkpoint;
       audio.onplaying = () => {
         if (session !== current || current.paused) return;
+        if (!current.attackStarted) {
+          current.attackStarted = true;
+          startAttack(current);
+        }
         emit(current, { type: "started", currentTime: audio.currentTime });
         startTick();
       };
@@ -127,6 +162,10 @@
       };
       await audio.play();
       if (session !== current) return { accepted: false, error: "Playback superseded" };
+      if (!current.attackStarted) {
+        current.attackStarted = true;
+        startAttack(current);
+      }
       return { accepted: true };
     } catch (error) {
       if (session?.id === id) {
@@ -148,12 +187,15 @@
       audio.pause();
       endTick();
       clearPause();
+      clearAttack();
       emit(current, { type: "paused", currentTime: audio.currentTime });
       return { accepted: true, currentTime: audio.currentTime };
     }
     if (type === "EDGE_TTS_PIPER_OFFSCREEN_RESUME") {
       try {
         current.paused = false;
+        // A pause during the attack must never strand the output at 0 volume.
+        audio.volume = current.targetVolume;
         await audio.play();
         if (session !== current) return { accepted: false, error: "Session superseded" };
         emit(current, { type: "resumed", currentTime: audio.currentTime });
@@ -165,11 +207,13 @@
       }
     }
     if (type === "EDGE_TTS_PIPER_OFFSCREEN_RATE") {
-      audio.playbackRate = Math.min(4, Math.max(0.25, Number(message.playbackRate) || 1));
+      current.playbackRate = Math.min(4, Math.max(0.25, Number(message.playbackRate) || 1));
+      audio.playbackRate = current.playbackRate;
       return { accepted: true };
     }
     if (type === "EDGE_TTS_PIPER_OFFSCREEN_VOLUME") {
-      audio.volume = Math.min(1, Math.max(0, Number(message.volume ?? 1)));
+      current.targetVolume = Math.min(1, Math.max(0, Number(message.volume ?? 1)));
+      if (attackTimer === null) audio.volume = current.targetVolume;
       return { accepted: true };
     }
     return { accepted: false, error: "Unsupported playback action" };
