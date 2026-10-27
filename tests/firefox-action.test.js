@@ -51,7 +51,7 @@ test("Firefox MV3 manifest: fixed ID, no idle injection, no Chromium offscreen",
   assert.equal(manifest.manifest_version, 3);
   assert.equal(manifest.browser_specific_settings.gecko.id, "firefox-tts@sguzman.dev");
   assert.deepEqual(manifest.browser_specific_settings.gecko.data_collection_permissions.required, ["none"]);
-  assert.deepEqual(manifest.background.scripts, ["src/background/native.js", "src/background/action.js"]);
+  assert.deepEqual(manifest.background.scripts, ["src/background/audio.js", "src/background/native.js", "src/background/action.js"]);
   assert.equal(manifest.content_scripts, undefined);
   assert.equal(manifest.host_permissions, undefined);
   for (const file of manifest.background.scripts) {
