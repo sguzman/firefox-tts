@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Persistent CPU-only Piper Native Messaging host for Edge Natural TTS."""
+"""Persistent CPU-only Piper Native Messaging host for Firefox TTS."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ from typing import Any
 # Defense in depth: the project never uses CUDA for Piper.
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
-# Do not import Piper/NumPy/ONNX Runtime at process startup. Edge starts its
+# Do not import Piper/NumPy/ONNX Runtime at process startup. Firefox starts its
 # native-messaging handshake timeout as soon as the process is launched, and a
 # cold onnxruntime import can exceed that budget. Handshake using stdlib only,
 # then import Piper lazily on the warm-up/synthesis path.
@@ -39,7 +39,14 @@ VOICE_ROOT = Path(
     )
 ).expanduser()
 
-APP_HOME = VOICE_ROOT.parent
+# Existing Edge voice assets are strictly read-only inputs. Firefox always writes
+# its own pronunciation configuration outside that tree; never derive writable
+# state from VOICE_ROOT (including an explicit external voice directory).
+APP_HOME = Path(os.environ.get(
+    "FIREFOX_TTS_DATA_HOME",
+    Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share"))
+    / "firefox-tts",
+)).expanduser()
 PRONUNCIATION_CONFIG_PATH = APP_HOME / "pronunciation-config.json"
 PRONUNCIATION_HISTORY_DIR = APP_HOME / "pronunciation-history"
 MAX_PRONUNCIATION_HISTORY = 20
@@ -574,7 +581,7 @@ def run_self_test(voice_id: str) -> int:
         pcm_bytes = 0
         sample_rate = 0
         peak = 0
-        for chunk in voice.synthesize("Ryan Piper self test.", config, include_alignments=False):
+        for chunk in voice.synthesize("Firefox TTS Piper self test.", config, include_alignments=False):
             raw = chunk.audio_int16_bytes
             pcm_bytes += len(raw)
             sample_rate = int(chunk.sample_rate)
@@ -604,7 +611,7 @@ def run_self_test(voice_id: str) -> int:
 
 
 def main() -> None:
-    # Keep startup stdlib-only so Edge can complete Native Messaging handshake
+    # Keep startup stdlib-only so Firefox can complete Native Messaging handshake
     # before Piper/onnxruntime cold imports begin.
     while True:
         try:
