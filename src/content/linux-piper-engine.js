@@ -322,8 +322,60 @@
       this.linuxPiperCurrentPrepared = null;
       this.linuxPiperPrefetchDepth = 2;
 
+      // These are local Piper WAV lifecycle fields. The Edge build inherited
+      // them from its online DirectAudio engine, which Firefox deliberately
+      // does not ship. Keep the required lifecycle self-contained.
+      this.directSessionMode = false;
+      this.directActive = false;
+      this.directAudio = null;
+      this.directObjectUrl = "";
+      this.directBoundaries = [];
+      this.directBoundaryIndex = 0;
+      this.directBoundaryFrame = null;
+      this.directPlaybackRate = 1;
+      this.directOutputGain = 1;
+
       void this.refreshLinuxPiperVoices();
       void this.refreshPronunciationConfig();
+    }
+
+    _clearBoundaryClock() {
+      if (this.directBoundaryFrame !== null) {
+        root.cancelAnimationFrame?.(this.directBoundaryFrame);
+        this.directBoundaryFrame = null;
+      }
+    }
+
+    _revokeObjectUrl() {
+      if (!this.directObjectUrl) return;
+      try { root.URL?.revokeObjectURL?.(this.directObjectUrl); } catch {}
+      this.directObjectUrl = "";
+    }
+
+    _resetDirectState({ keepMode = true } = {}) {
+      this._clearBoundaryClock();
+      const audio = this.directAudio;
+      this.directAudio = null;
+      if (audio) {
+        try {
+          audio.pause?.();
+          audio.removeAttribute?.("src");
+          audio.load?.();
+        } catch {}
+      }
+      this._revokeObjectUrl();
+      this.directBoundaries = [];
+      this.directBoundaryIndex = 0;
+      this.directActive = false;
+      if (!keepMode) this.directSessionMode = false;
+      this.clearPlaybackTimers?.();
+      this.currentUtterance = null;
+      this.currentChunks = [];
+      this.currentChunkIndex = -1;
+      this.currentChunkBoundaryIndex = -1;
+      this.currentOptions = null;
+      this.recoveryKey = "";
+      this.recoveryAttempts = 0;
     }
 
     refreshPronunciationConfig() {
