@@ -37,6 +37,19 @@ def qa_package(release: Path, destination: Path) -> None:
       if (change.status !== "complete" ||
           !tab.url?.startsWith("http://127.0.0.1:")) return;
       void (async () => {
+        if (tab.url.includes("qaFallback=1")) {
+          await browser.scripting.executeScript({
+            target: { tabId },
+            func: () => {
+              // Synthetic QA-only page media error forces the production
+              // fallback path. Never installed into a real user profile.
+              HTMLMediaElement.prototype.play = function() {
+                setTimeout(() => this.onerror?.(), 20);
+                return Promise.resolve();
+              };
+            }
+          });
+        }
         await browser.scripting.insertCSS({ target: { tabId },
           files: ["src/content/content.css"] });
         await browser.scripting.executeScript({ target: { tabId },
@@ -83,6 +96,24 @@ def qa_package(release: Path, destination: Path) -> None:
         });
       })().catch(error => console.error("Firefox QA reader injection:", error));
     });""".replace("FILE_LIST", json.dumps(files))
+    bridge += """\nconst ttsQaPlayer = globalThis.FirefoxTtsBackground?.player;
+    if (ttsQaPlayer) {
+      const originalPlayerHandle = ttsQaPlayer.handle.bind(ttsQaPlayer);
+      ttsQaPlayer.handle = async (message, tabId) => {
+        const response = await originalPlayerHandle(message, tabId);
+        if (message?.type === "EDGE_TTS_PIPER_OFFSCREEN_PLAY") {
+          void browser.scripting.executeScript({
+            target: { tabId },
+            func: result => {
+              document.documentElement.dataset.firefoxTtsQaPlayback = JSON.stringify(result);
+            },
+            args: [{ accepted: response?.accepted === true, error: response?.error || "" }]
+          }).catch(() => {});
+        }
+        return response;
+      };
+    }
+    """
     bridge += """\nbrowser.runtime.onMessage.addListener((message) => {
       if (message?.type !== "FIREFOX_TTS_QA_OPTIONS_REPORT") return false;
       return browser.tabs.query({ url: "http://127.0.0.1/*" }).then(async tabs => {
@@ -207,7 +238,7 @@ def main() -> None:
                                 timeout=15, explanation="QA driver did not start")
                 caps = {"capabilities": {"alwaysMatch": {
                     "browserName": "firefox",
-                    "moz:firefoxOptions": {"args": ["-headless"]}
+                    "moz:firefoxOptions": {"args": ["-headless"], "prefs": {"media.autoplay.default": 0}}
                 }}}
                 created = base.request(host + "/session", "POST", caps, timeout=55)
                 session = created["value"]["sessionId"]
@@ -299,6 +330,15 @@ def main() -> None:
                 assert "S, Q, Lite" in report.get("spoken", ""), report
                 assert report.get("accepted") is True and report.get("chunkCount", 0) > 0, report
                 print("PASS: Firefox pronunciation options projected source and synthesized mock Piper WAV")
+                base.webdriver(host, session, "POST", "url", {
+                    "url": f"http://127.0.0.1:{server.server_address[1]}/index.html?qaFallback=1"
+                })
+                fallback_json = base.eventually(lambda: base.execute(host, session,
+                    "return document.documentElement.dataset.firefoxTtsQaPlayback"),
+                    timeout=18, explanation="Firefox never entered the extension-owned WAV fallback")
+                fallback = json.loads(fallback_json)
+                assert fallback["accepted"] is True, fallback
+                print("PASS: Firefox event-page accepted fallback WAV after synthetic tab-audio error")
 
             except Exception:
                 logs.flush()
