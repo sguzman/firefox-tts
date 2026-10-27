@@ -95,6 +95,7 @@ test("Firefox native helper is lazy, offline and uses a separate host name", asy
 
 test("Native synth frames are forwarded only to owning tab with the original request id", async () => {
   const h = makeHarness();
+  assert.equal((await h.message("EDGE_TTS_AUDIO_CLAIM", {}, 44)).granted, true);
   const result = await h.message("EDGE_TTS_LINUX_PIPER_SYNTHESIZE",
     { requestId: "reader-44", voiceId: "en_US-amy-low", text: "Hello Firefox." }, 44);
   assert.equal(result.accepted, true);
@@ -119,6 +120,7 @@ test("Cross-tab preemption and release do not give old tabs ownership", async ()
 
 test("Firefox event-page WAV player enforces owner, revokes blobs and stops on tab close", async () => {
   const h = makeHarness();
+  assert.equal((await h.message("EDGE_TTS_AUDIO_CLAIM", {}, 6)).granted, true);
   const result = await h.message("EDGE_TTS_PIPER_OFFSCREEN_PLAY", {
     playbackId: "p1", audioChunks: [h.fakeBase64],
     boundaryOffsets: [0, 0.15, 0.30], playbackRate: 1.2, volume: 0.7
@@ -139,10 +141,47 @@ test("Firefox event-page WAV player enforces owner, revokes blobs and stops on t
 
 test("Player rejects malformed chunk lists without allocating media", async () => {
   const h = makeHarness();
+  assert.equal((await h.message("EDGE_TTS_AUDIO_CLAIM", {}, 3)).granted, true);
   const response = await h.message("EDGE_TTS_PIPER_OFFSCREEN_PLAY", {
     playbackId: "bad", audioChunks: ["!not-base64"]
   }, 3);
   assert.equal(response.accepted, false);
   assert.equal(h.urls.size, 0);
   assert.equal(h.player.getSession(), null);
+});
+
+test("stopped, released and preempted tabs cannot resume stale audio or synthesize", async () => {
+  const h = makeHarness();
+  const bad = await h.message("EDGE_TTS_LINUX_PIPER_SYNTHESIZE",
+    { requestId:"stale", voiceId:"en_US-amy-low", text:"Do not speak" }, 23);
+  assert.equal(bad.accepted, false);
+  assert.equal(h.outgoing.some(m=>m.type==="synthesize"), false);
+  const badPlay = await h.message("EDGE_TTS_PIPER_OFFSCREEN_PLAY",
+    { playbackId:"stale", audioChunks:[h.fakeBase64] }, 23);
+  assert.equal(badPlay.accepted, false);
+  assert.equal(h.urls.size, 0);
+
+  await h.message("EDGE_TTS_AUDIO_CLAIM", {}, 23);
+  const ok = await h.message("EDGE_TTS_LINUX_PIPER_SYNTHESIZE",
+    { requestId:"live", voiceId:"en_US-amy-low", text:"Say hello" }, 23);
+  assert.equal(ok.accepted, true);
+  const active = h.outgoing.find(m=>m.type==="synthesize");
+  const play = await h.message("EDGE_TTS_PIPER_OFFSCREEN_PLAY",
+    { playbackId:"live", audioChunks:[h.fakeBase64] }, 23);
+  assert.equal(play.accepted, true);
+  assert.equal(h.urls.size, 1);
+  assert.equal((await h.message("EDGE_TTS_AUDIO_RELEASE", {}, 23)).released, true);
+  assert.equal(h.urls.size, 0);
+  assert.ok(h.outgoing.some(m=>m.type==="cancel" && m.requestId===active.requestId));
+  assert.equal((await h.message("EDGE_TTS_PIPER_OFFSCREEN_PLAY",
+    { playbackId:"revived", audioChunks:[h.fakeBase64] }, 23)).accepted, false);
+
+  await h.message("EDGE_TTS_AUDIO_CLAIM", {}, 23);
+  await h.message("EDGE_TTS_PIPER_OFFSCREEN_PLAY",
+    { playbackId:"again", audioChunks:[h.fakeBase64] }, 23);
+  await h.message("EDGE_TTS_AUDIO_CLAIM", {}, 24);
+  assert.equal(h.urls.size, 0);
+  assert.equal(h.native.audioOwnerTabId, 24);
+  assert.equal((await h.message("EDGE_TTS_PIPER_OFFSCREEN_PLAY",
+    { playbackId:"again2", audioChunks:[h.fakeBase64] }, 23)).accepted, false);
 });
