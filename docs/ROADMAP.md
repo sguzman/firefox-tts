@@ -17,7 +17,7 @@ Target: a Firefox Developer Edition-first, Linux-only, offline Piper read-aloud 
 
 Progress = sum of weights of work items with **verified acceptance evidence** / 100. Weights are frozen, include tests and user acceptance, and are not estimates of elapsed time. `roundDelta` = new percent minus previous reported percent. Unknown, partial, untested or blocked work remains **0 credit** for its item, even when code is checked in. Fixes within existing tasks do not introduce arbitrary new work or inflate progress. Any necessary scope change needs a recorded rationale and explicit weight migration that preserves the already-reported baseline. Ledger: [`progress.json`](../progress.json).
 
-Initial baseline: 0% (license + ignore only). Current audio-clock/preflight refinement: **89% (+0 points from prior 89%)**. In isolated real Gecko, QA-only mock-sink output decoded a synthetic Piper WAV and advanced the actual media clock; a read-only CPU voice preflight now has passing fake-host tests. Real installed ONNX synthesis, authenticated ChatGPT Writing Blocks, and end-user acceptance remain unverified.
+Initial baseline: 0% (license + ignore only). Current genuine CPU Piper model validation: **94% (+5 points since 89%)**. User's existing Piper 1.8.0 performed a successful en_US-amy-low inference at 16000 Hz, producing 93184 PCM bytes. Remaining gates are authenticated ChatGPT Writing Block behavior and final Firefox Developer Edition user acceptance.
 
 | Stage | Fixed weight |
 | --- | ---: |
@@ -51,7 +51,7 @@ Initial baseline: 0% (license + ignore only). Current audio-clock/preflight refi
 - [x] **🦊 F01** · **5%** — Create Firefox MV3 manifest and fixed Gecko ID. Acceptance: Manifest loads without schema errors in isolated Firefox and declares only justified permissions.
 - [x] **🧠 F02** · **6%** — Move orchestration to Firefox background event page. Acceptance: Messaging, active tab, native port, tab-close cleanup and suspension/restart tested.
 - [x] **🔌 F03** · **6%** — Implement dedicated Firefox Native Messaging manifest and installer. Acceptance: Gecko allowed_extensions, correct per-user path and isolated installation; never modify Edge host.
-- [ ] **🐍 F04** · **5%** — Reuse Piper safely as CPU-only native backend. Acceptance: Native hello, enumerate, synthesize and cancel pass; existing voices and files untouched.
+- [x] **🐍 F04** · **5%** — Reuse Piper safely as CPU-only native backend. Acceptance: Native hello, enumerate, synthesize and cancel pass; existing voices and files untouched.
 - [x] **🔊 F05** · **7%** — Replace Chromium offscreen audio playback and timing. Acceptance: Firefox-compatible extension-owned media, word events, pause/resume and autoplay recovery tested.
 - [x] **⏯️ F06** · **2%** — Restore cross-tab ownership and cancellation. Acceptance: No stale audio continues on stop, tab switch, extension reload or rapid restart.
 

@@ -8,10 +8,10 @@
     "note": "Repository initially contained only LICENSE and .gitignore"
   },
   "asOf": "2026-10-27",
-  "completedWeight": 89,
+  "completedWeight": 94,
   "totalWeight": 100,
-  "percent": 89,
-  "roundDelta": 0,
+  "percent": 94,
+  "roundDelta": 5,
   "source": {
     "repo": "sguzman/edge-tts",
     "branch": "development/linux-piper-v1",
@@ -197,12 +197,12 @@
       "weight": 5,
       "title": "Reuse Piper safely as CPU-only native backend",
       "acceptance": "Native hello, enumerate, synthesize and cancel pass; existing voices and files untouched",
-      "status": "todo",
-      "evidence": [],
-      "partialEvidence": [
-        "native/linux-piper/self-test-cpu.sh validates existing CPU-only Piper interpreter and voice paths before attempting non-mutating ONNX self-test",
-        "tests/test_fake_piper_protocol.py validates preflight, framed Native Messaging synthesis/cancel and voice model immutability with a disposable fake Piper environment; CI run 40552270990",
-        "PENDING: CPU Piper inference with a genuine installed .onnx voice in the user's environment is not yet observed. Keep F04 uncredited."
+      "status": "done",
+      "evidence": [
+        "Local real-model evidence, user-provided 2026-10-27: CPU-only piper-tts distribution 1.8.0; Piper self-test OK: en_US-amy-low; 16000 Hz; 93184 PCM bytes; peak=32767. No personal paths, model files or settings were uploaded.",
+        "native/linux-piper/self-test-cpu.sh validates already-installed CPU-only interpreter and existing model files without downloads; its genuine-model path succeeded in the user's own Linux environment.",
+        "tests/test_fake_piper_protocol.py verifies native hello, enumerate, framed WAV synthesis, cancellation and unchanged source-model bytes in disposable environments; all CI jobs green at 40552578124.",
+        "Read-only voice model and isolated writable Firefox pronunciation config enforced in native/linux-piper/linux_piper_host.py; real installed voice produced nonempty PCM without altering Edge runtime installation."
       ]
     },
     {
@@ -414,11 +414,11 @@
     }
   ],
   "previousPercent": 89,
-  "round": "real-firefox-media-clock-and-cpu-preflight-1",
+  "round": "real-cpu-piper-voice-acceptance-1",
   "stageCompleted": {
     "Governance": 8,
     "Core port": 21,
-    "Firefox integration": 26,
+    "Firefox integration": 31,
     "User experience": 14,
     "Verification": 17,
     "Release": 3
@@ -430,16 +430,12 @@
   },
   "blockers": [
     {
-      "id": "F04",
-      "detail": "Actual pre-existing CPU Piper ONNX model synthesis preflight requires access to real installed voice/runtime; only fake model tested remotely."
-    },
-    {
       "id": "U05",
-      "detail": "Real Firefox synthetic ChatGPT Writing Block safe extraction passes; no access to authenticated live ChatGPT Writing Block."
+      "detail": "Actual authenticated ChatGPT Writing Block extraction and focus safety still require live confirmation. Disposable real Firefox synthetic fixture passed."
     },
     {
       "id": "R03",
-      "detail": "User acceptance of exact Firefox Developer Edition candidate, real voice speech, settings and no focus theft still outstanding."
+      "detail": "Exact-candidate user acceptance in Firefox Developer Edition with audible speech, stop/quit/settings/focus remains unverified."
     }
   ],
   "lastBrowserEvidence": {
@@ -452,5 +448,15 @@
       "Keyboard shortcut failed to expose reader toolbar"
     ],
     "note": "Isolated runner profile, not user's real Firefox"
+  },
+  "realModelEvidence": {
+    "date": "2026-10-27",
+    "source": "User-provided output of native/linux-piper/self-test-cpu.sh en_US-amy-low",
+    "piperVersion": "1.8.0",
+    "model": "en_US-amy-low",
+    "sampleRateHz": 16000,
+    "pcmBytes": 93184,
+    "peak": 32767,
+    "note": "CPU ONNX self-test passed. Does not prove browser action, speaker sound, or live ChatGPT UI."
   }
 }
