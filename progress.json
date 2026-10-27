@@ -8,10 +8,10 @@
     "note": "Repository initially contained only LICENSE and .gitignore"
   },
   "asOf": "2026-10-27",
-  "completedWeight": 41,
+  "completedWeight": 46,
   "totalWeight": 100,
-  "percent": 41,
-  "roundDelta": 8,
+  "percent": 46,
+  "roundDelta": 5,
   "source": {
     "repo": "sguzman/edge-tts",
     "branch": "development/linux-piper-v1",
@@ -239,8 +239,12 @@
       "weight": 4,
       "title": "Preserve user pronunciation rules and backups",
       "acceptance": "Explicit migration/read-only source handling; restore, revision history and failure cases tested",
-      "status": "todo",
-      "evidence": []
+      "status": "done",
+      "evidence": [
+        "Dry-run, explicit copy and opt-in replace with SHA-256 check, no Edge writes: native/linux-piper/migrate-pronunciation.py",
+        "Archive every overwritten Firefox revision and explicitly restore by validated backup filename; refuse symlinks/traversal/corrupt data",
+        "Python migration and rollback tests in disposable XDG_HOME passed in the no-dependency-checks job of run 40544414272"
+      ]
     },
     {
       "id": "U04",
@@ -336,8 +340,12 @@
       "weight": 1,
       "title": "Produce reproducible unsigned/signed-ready extension packaging",
       "acceptance": "Deterministic XPI artifact and content hashes documented; no paid service",
-      "status": "todo",
-      "evidence": []
+      "status": "done",
+      "evidence": [
+        "tools/build_xpi.py packages only manifest, license and extension source, with fixed ZIP timestamps, permissions and sorted paths",
+        "tests/test_package.py compares byte-for-byte and SHA-256 across two disposable builds; passing no-dependency-checks in run 40544414272",
+        "docs/PACKAGING.md records repeatable build command, checksum output and unsigned signing limitation"
+      ]
     },
     {
       "id": "R03",
@@ -350,19 +358,25 @@
       "evidence": []
     }
   ],
-  "previousPercent": 33,
-  "round": "dom-model-idle-1",
+  "previousPercent": 41,
+  "round": "data-rollback-package-1",
   "stageCompleted": {
     "Governance": 8,
     "Core port": 21,
     "Firefox integration": 6,
-    "User experience": 0,
+    "User experience": 4,
     "Verification": 6,
-    "Release": 0
+    "Release": 1
   },
   "lastGreenCI": {
-    "runId": 40542199945,
-    "headSha": "bdad7c12419ce1e7848c51ad8cbca5b43aa4cc93",
-    "note": "Unit tests, synthetic DOM, stdlib native isolation. Does not establish real Firefox acceptance."
-  }
+    "runId": 40544414272,
+    "job": "no-dependency-checks",
+    "note": "Static, mock and disposable native tests passed; separate real-Firefox shortcut smoke job failed and remains uncredited"
+  },
+  "blockers": [
+    {
+      "id": "T04",
+      "detail": "Firefox headless action shortcut does not fire. Unsigned temporary MV3 installs and idle stays untouched; privileged toolbar activation investigation ongoing."
+    }
+  ]
 }

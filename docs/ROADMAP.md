@@ -17,7 +17,7 @@ Target: a Firefox Developer Edition-first, Linux-only, offline Piper read-aloud 
 
 Progress = sum of weights of work items with **verified acceptance evidence** / 100. Weights are frozen, include tests and user acceptance, and are not estimates of elapsed time. `roundDelta` = new percent minus previous reported percent. Unknown, partial, untested or blocked work remains **0 credit** for its item, even when code is checked in. Fixes within existing tasks do not introduce arbitrary new work or inflate progress. Any necessary scope change needs a recorded rationale and explicit weight migration that preserves the already-reported baseline. Ledger: [`progress.json`](../progress.json).
 
-Initial baseline: 0% (license + ignore only). Current DOM/idle-safety round: **41% (+8 points since the previous 33% report)**. Multi-block text provenance, CSS highlighting, safe click-seek, and no-idle-injection tests pass; real Firefox playback and model synthesis remain unverified.
+Initial baseline: 0% (license + ignore only). Current migration/package round: **46% (+5 points since the previous 41% report)**. Pronunciation backup/restore and reproducible unsigned XPI tests pass; headless Firefox installation succeeds but toolbar activation is still under investigation.
 
 | Stage | Fixed weight |
 | --- | ---: |
@@ -59,7 +59,7 @@ Initial baseline: 0% (license + ignore only). Current DOM/idle-safety round: **4
 
 - [ ] **🎙️ U01** · **3%** — Port Piper catalog, default and preferences. Acceptance: Voice discovery works; Amy Low default with optional Ryan and other installed voices.
 - [ ] **🗣️ U02** · **4%** — Port pronunciation projection and live testing. Acceptance: Rules, previews, import/export, source mapping and sentence boundaries tested.
-- [ ] **💾 U03** · **4%** — Preserve user pronunciation rules and backups. Acceptance: Explicit migration/read-only source handling; restore, revision history and failure cases tested.
+- [x] **💾 U03** · **4%** — Preserve user pronunciation rules and backups. Acceptance: Explicit migration/read-only source handling; restore, revision history and failure cases tested.
 - [ ] **🎚️ U04** · **3%** — Port toolbar, batching and speech controls. Acceptance: Volume, pitch-preserving speed, sentence pause, seek, highlighting and controls verified.
 - [ ] **📝 U05** · **4%** — Handle ChatGPT messages and writing blocks safely. Acceptance: Synthetic and live writing-block extraction verified, without reading composer or stealing focus.
 
@@ -74,7 +74,7 @@ Initial baseline: 0% (license + ignore only). Current DOM/idle-safety round: **4
 ### Release — 5%
 
 - [ ] **📘 R01** · **2%** — Write installation, migration and recovery instructions. Acceptance: Linux-only instructions tested on disposable data directories and no sudo requirement.
-- [ ] **📦 R02** · **1%** — Produce reproducible unsigned/signed-ready extension packaging. Acceptance: Deterministic XPI artifact and content hashes documented; no paid service.
+- [x] **📦 R02** · **1%** — Produce reproducible unsigned/signed-ready extension packaging. Acceptance: Deterministic XPI artifact and content hashes documented; no paid service.
 - [ ] **✅ R03** · **2%** — Real Firefox Developer Edition user acceptance. Acceptance: Exact candidate loaded in real browser and user confirms speech, quit, settings and no focus theft.
 
 ## Work order and dependencies
