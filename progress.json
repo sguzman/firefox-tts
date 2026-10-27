@@ -8,10 +8,10 @@
     "note": "Repository initially contained only LICENSE and .gitignore"
   },
   "asOf": "2026-10-27",
-  "completedWeight": 57,
+  "completedWeight": 73,
   "totalWeight": 100,
-  "percent": 57,
-  "roundDelta": 3,
+  "percent": 73,
+  "roundDelta": 16,
   "source": {
     "repo": "sguzman/edge-tts",
     "branch": "development/linux-piper-v1",
@@ -169,8 +169,12 @@
       "weight": 6,
       "title": "Move orchestration to Firefox background event page",
       "acceptance": "Messaging, active tab, native port, tab-close cleanup and suspension/restart tested",
-      "status": "todo",
-      "evidence": []
+      "status": "done",
+      "evidence": [
+        "Gecko MV3 background scripts manage explicit reader injection, per-tab Native Messaging, audio owner, tab-close cancellation and fallback audio",
+        "tests/native-failure.test.js covers handshake release race, crash/disconnect and timeout; tests/audio-stress.test.js covers fresh event-page scope",
+        "Disposable real Firefox: QA-only localhost variant injects production reader and native mock, validates controls and quit; GitHub Actions run 40547884795 green"
+      ]
     },
     {
       "id": "F03",
@@ -213,8 +217,12 @@
       "weight": 2,
       "title": "Restore cross-tab ownership and cancellation",
       "acceptance": "No stale audio continues on stop, tab switch, extension reload or rapid restart",
-      "status": "todo",
-      "evidence": []
+      "status": "done",
+      "evidence": [
+        "src/background/native.js now checks audioOwnerTabId before and after Native Messaging handshake and before all player commands; release cancels native and stops audio",
+        "tests/firefox-native.test.js verifies invalid tab, preemption, release and old playback invalidation; tests/native-failure.test.js ensures late handshake cannot resurrect speech",
+        "All test jobs passed at run 40547884795; this verifies lifecycle logic with mock audio rather than real speaker output"
+      ]
     },
     {
       "id": "U01",
@@ -308,8 +316,12 @@
       "weight": 4,
       "title": "Stress playback timing and lifecycle",
       "acceptance": "Long text, rapid play/pause, no leaks, suspended contexts and reload failures exercised",
-      "status": "todo",
-      "evidence": []
+      "status": "done",
+      "evidence": [
+        "tests/audio-stress.test.js verifies 150 rapid play/stop cycles, zero leaked blobs or timers and bounded long-text boundary events",
+        "Repeated pause/resume and old-session suppression, fresh event-page scope and native disconnect/timeout/race exercised in synthetic tests",
+        "GitHub Actions run 40547884795 green; real sustained playback remains the F05/R03 gate"
+      ]
     },
     {
       "id": "T04",
@@ -318,8 +330,12 @@
       "weight": 4,
       "title": "Automate disposable Firefox end-to-end tests",
       "acceptance": "Headless isolated Firefox tests for injection, reader, settings and native mock; no real profile access",
-      "status": "todo",
-      "evidence": []
+      "status": "done",
+      "evidence": [
+        "tests/firefox_headless_smoke.py installs exact unsigned MV3 package in disposable Firefox and confirms idle page remains untouched",
+        "tests/firefox_reader_integration.py builds a separate QA-only localhost XPI, exercises actual Firefox reader injection and Stop/Quit focus with synthetic text",
+        "Run 40547884795 confirms native-host handshake and Amy voice discovery using fake CPU Piper plus real Firefox speed controls; production XPI remains unchanged"
+      ]
     },
     {
       "id": "T05",
@@ -370,25 +386,25 @@
       "evidence": []
     }
   ],
-  "previousPercent": 54,
-  "round": "privacy-static-1",
+  "previousPercent": 57,
+  "round": "firefox-e2e-and-lifecycle-1",
   "stageCompleted": {
     "Governance": 8,
     "Core port": 21,
-    "Firefox integration": 11,
+    "Firefox integration": 19,
     "User experience": 7,
-    "Verification": 9,
+    "Verification": 17,
     "Release": 1
   },
   "lastGreenCI": {
-    "runId": 40546193175,
-    "headSha": "274bf0d303462459c5eaad23fbafaa6352f34ff0",
-    "note": "No-dependency static/native checks and isolated Firefox install/idle smoke passed; activation/audio remain open."
+    "runId": 40547884795,
+    "headSha": "88e151c282a2bb0e0ce47b99d5d943ac70fef7b9",
+    "note": "3 CI jobs green: static/native tests, production XPI install/idle, QA-only localhost Firefox reader/native-mock integration; actual Piper ONNX and audible output not verified"
   },
   "blockers": [
     {
-      "id": "T04",
-      "detail": "Firefox headless action shortcut does not fire. Unsigned temporary MV3 installs and idle stays untouched; privileged toolbar activation investigation ongoing."
+      "id": "F04/F05/R03",
+      "detail": "Actual installed CPU Piper model synthesis and audible playback in Firefox Developer Edition remain unverified; user acceptance not yet requested."
     }
   ],
   "lastBrowserEvidence": {

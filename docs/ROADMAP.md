@@ -17,7 +17,7 @@ Target: a Firefox Developer Edition-first, Linux-only, offline Piper read-aloud 
 
 Progress = sum of weights of work items with **verified acceptance evidence** / 100. Weights are frozen, include tests and user acceptance, and are not estimates of elapsed time. `roundDelta` = new percent minus previous reported percent. Unknown, partial, untested or blocked work remains **0 credit** for its item, even when code is checked in. Fixes within existing tasks do not introduce arbitrary new work or inflate progress. Any necessary scope change needs a recorded rationale and explicit weight migration that preserves the already-reported baseline. Ledger: [`progress.json`](../progress.json).
 
-Initial baseline: 0% (license + ignore only). Current privacy-audit round: **57% (+3 points since the previous 54% report)**. No-network/no-telemetry permissions and local data isolation have passing CI audits; reader activation and audible Piper acceptance remain open.
+Initial baseline: 0% (license + ignore only). Current real-Firefox E2E/lifecycle round: **73% (+16 points since 57%)**. Disposable Firefox, reader/settings, Native Messaging mock and playback lifecycle checks pass. Real installed Piper model synthesis and audible browser playback remain open.
 
 | Stage | Fixed weight |
 | --- | ---: |
@@ -49,11 +49,11 @@ Initial baseline: 0% (license + ignore only). Current privacy-audit round: **57%
 ### Firefox integration — 31%
 
 - [x] **🦊 F01** · **5%** — Create Firefox MV3 manifest and fixed Gecko ID. Acceptance: Manifest loads without schema errors in isolated Firefox and declares only justified permissions.
-- [ ] **🧠 F02** · **6%** — Move orchestration to Firefox background event page. Acceptance: Messaging, active tab, native port, tab-close cleanup and suspension/restart tested.
+- [x] **🧠 F02** · **6%** — Move orchestration to Firefox background event page. Acceptance: Messaging, active tab, native port, tab-close cleanup and suspension/restart tested.
 - [x] **🔌 F03** · **6%** — Implement dedicated Firefox Native Messaging manifest and installer. Acceptance: Gecko allowed_extensions, correct per-user path and isolated installation; never modify Edge host.
 - [ ] **🐍 F04** · **5%** — Reuse Piper safely as CPU-only native backend. Acceptance: Native hello, enumerate, synthesize and cancel pass; existing voices and files untouched.
 - [ ] **🔊 F05** · **7%** — Replace Chromium offscreen audio playback and timing. Acceptance: Firefox-compatible extension-owned media, word events, pause/resume and autoplay recovery tested.
-- [ ] **⏯️ F06** · **2%** — Restore cross-tab ownership and cancellation. Acceptance: No stale audio continues on stop, tab switch, extension reload or rapid restart.
+- [x] **⏯️ F06** · **2%** — Restore cross-tab ownership and cancellation. Acceptance: No stale audio continues on stop, tab switch, extension reload or rapid restart.
 
 ### User experience — 18%
 
@@ -67,8 +67,8 @@ Initial baseline: 0% (license + ignore only). Current privacy-audit round: **57%
 
 - [x] **🧪 T01** · **3%** — Implement static and unit checks without npm. Acceptance: Node builtin test and syntax checks green from clean checkout.
 - [x] **📡 T02** · **3%** — Test native messaging protocol and failure boundaries. Acceptance: Synthetic framing, malformed frames, disconnects, cancellation and timeouts pass.
-- [ ] **🎼 T03** · **4%** — Stress playback timing and lifecycle. Acceptance: Long text, rapid play/pause, no leaks, suspended contexts and reload failures exercised.
-- [ ] **🧫 T04** · **4%** — Automate disposable Firefox end-to-end tests. Acceptance: Headless isolated Firefox tests for injection, reader, settings and native mock; no real profile access.
+- [x] **🎼 T03** · **4%** — Stress playback timing and lifecycle. Acceptance: Long text, rapid play/pause, no leaks, suspended contexts and reload failures exercised.
+- [x] **🧫 T04** · **4%** — Automate disposable Firefox end-to-end tests. Acceptance: Headless isolated Firefox tests for injection, reader, settings and native mock; no real profile access.
 - [x] **🔒 T05** · **3%** — Audit privacy, permissions, resource usage and license. Acceptance: No telemetry; minimum permissions; no private QA data committed; third-party notices correct.
 
 ### Release — 5%
