@@ -1,6 +1,6 @@
 # 🦊 Firefox TTS — Linux installation and recovery
 
-**Status: development candidate, not yet a finished release.** Real Firefox injection, synthetic CPU Piper Native Messaging, and the user controls are tested with disposable profiles. Real installed Piper model synthesis, audible playback and final user acceptance remain open. This page documents the setup but does not request that the user test it yet.
+**Status: development candidate, 94% verified as of October 27, 2026; not a finished release.** Real Firefox injection, synthetic CPU Piper Native Messaging, and controls have been tested in disposable profiles. The user's actual installed CPU-only Piper 1.8.0 model also passed a read-only local synthesis test (`en_US-amy-low`, 16 kHz, 93,184 PCM bytes). **Audible playback in the user's Firefox Developer Edition, the authenticated ChatGPT Writing Block, and final acceptance remain open.** The steps below are for explicit, opt-in local acceptance testing; no automatic install or migration occurs.
 
 ## Requirements
 
@@ -116,4 +116,4 @@ python3 tests/firefox_reader_integration.py
 
 The last two require preinstalled Firefox and Geckodriver, use a disposable profile and only synthetic data. They do not touch the user's everyday profile.
 
-**Release gate:** Real installed-model speech, Firefox media timing, stop/resume, Writing Blocks, focus safety and exact-candidate user acceptance must pass before claiming 100%.
+**Release gate:** Real CPU-only model synthesis is verified; synthetic Firefox audio timing and the reader controls have passed CI. Audible real-voice speech, the live authenticated Writing Block, and exact-candidate focus/Stop/Quit/settings acceptance in Firefox Developer Edition still need confirmation before claiming 100%.
