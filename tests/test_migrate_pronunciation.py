@@ -62,6 +62,28 @@ class MigrationTest(unittest.TestCase):
         self.assertEqual(json.loads(self.new.read_text())["revision"], 2)
         self.assertEqual(json.loads(self.old.read_text())["revision"], 2)
 
+    def test_archived_revision_can_be_restored_without_touching_edge_source(self):
+        self.assertEqual(self.invoke("--apply").returncode, 0)
+        initial = self.new.read_bytes()
+        incoming = json.loads(self.old.read_text())
+        incoming["revision"] = 12
+        self.old.write_text(json.dumps(incoming))
+        self.assertEqual(self.invoke("--apply", "--replace").returncode, 0)
+        before = list((self.new.parent / "pronunciation-history").glob("before-edge-import-*.json"))
+        self.assertEqual(len(before), 1)
+        name = before[0].name
+        dry = self.invoke("--restore", name)
+        self.assertEqual(dry.returncode, 0, dry.stderr)
+        self.assertEqual(json.loads(self.new.read_text())["revision"], 12)
+        applied = self.invoke("--apply", "--restore", name)
+        self.assertEqual(applied.returncode, 0, applied.stderr)
+        self.assertEqual(self.new.read_bytes(), initial)
+        rewinds = list((self.new.parent / "pronunciation-history").glob("before-restore-*.json"))
+        self.assertEqual(len(rewinds), 1)
+        self.assertEqual(json.loads(rewinds[0].read_text())["revision"], 12)
+        self.assertEqual(json.loads(self.old.read_text())["revision"], 12)
+        self.assertEqual(self.invoke("--apply", "--restore", "../not-a-backup.json").returncode, 2)
+
     def test_rejects_corrupt_input_without_creating_firefox_files(self):
         self.old.write_text('{"revision":')
         result = self.invoke("--apply")
