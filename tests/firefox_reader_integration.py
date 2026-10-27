@@ -42,6 +42,12 @@ def qa_package(release: Path, destination: Path) -> None:
         await browser.scripting.executeScript({ target: { tabId },
           files: FILE_LIST });
         await browser.tabs.sendMessage(tabId, { type: "EDGE_TTS_TOGGLE_V2" });
+        // QA-only metadata: production manifest never includes this bridge.
+        await browser.scripting.executeScript({
+          target: { tabId },
+          func: (url) => { document.documentElement.dataset.firefoxTtsQaOptions = url; },
+          args: [browser.runtime.getURL("src/options/pronunciation.html")]
+        });
       })().catch(error => console.error("Firefox QA reader injection:", error));
     });""".replace("FILE_LIST", json.dumps(files))
     with zipfile.ZipFile(release) as original:
@@ -183,6 +189,24 @@ def main() -> None:
                     "return document.querySelector('#edge-tts-toolbar') === null"),
                     timeout=8, explanation="Quit did not remove toolbar in real Firefox")
                 print("PASS: Real Firefox synthetic reader stop/quit did not steal editor focus")
+                options_url = base.execute(host, session,
+                    "return document.documentElement.dataset.firefoxTtsQaOptions")
+                assert options_url.startswith("moz-extension://") and options_url.endswith(
+                    "/src/options/pronunciation.html"), options_url
+                base.webdriver(host, session, "POST", "url", {"url": options_url})
+                base.eventually(lambda: base.execute(host, session,
+                    "return Boolean(document.querySelector('#preview-spoken')?.value)"),
+                    timeout=12, explanation="Firefox options page failed to load pronunciation preview")
+                spoken = base.execute(host, session,
+                    """const src=document.querySelector('#preview-source');
+                       src.value='GPU JSON SQLite';
+                       src.dispatchEvent(new Event('input',{bubbles:true}));
+                       return document.querySelector('#preview-spoken').value;""")
+                assert "jee, pee, you" in spoken and "S, Q, Lite" in spoken, spoken
+                assert base.execute(host, session,
+                    "return document.querySelector('#test-play') !== null")
+                print("PASS: Real Firefox pronunciation editor projects synthetic source text")
+
             except Exception:
                 logs.flush()
                 print("QA geckodriver log tail:", file=sys.stderr)
