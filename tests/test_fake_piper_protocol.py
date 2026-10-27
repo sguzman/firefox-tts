@@ -31,7 +31,7 @@ class PiperVoice:
             time.sleep(0.016)
             yield type("Chunk", (), {
                 "sample_rate": 16000, "sample_width": 2, "sample_channels": 1,
-                "audio_int16_bytes": b"\\x01\\x00" * 160
+                "audio_int16_bytes": b"\\x01\\x00" * 3200
             })()
 '''
 
