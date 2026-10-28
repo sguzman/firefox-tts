@@ -421,12 +421,14 @@
         "Pending: user's live listening confirmation that 96ec1aa fixes initial start, entire text progression and 1.9x popping, plus focus and final acceptance.",
         "2026-10-27 user confirmed 2x sentence starts laggy and word highlight trails after previous high-speed mitigation. Candidate e68a435 fixes dropped first-word boundary and decreases high-speed polling 50→16ms, tested in Gecko; no real acoustic confirmation.",
         "2026-10-27 user independently confirmed pronunciation test bench at 2x has no onset pops, whereas full reader pops regardless of 0ms vs 1200ms sentence pause; preserve-pitch on/off sounded identical. Distinct pipelines identified: reader uses four abrupt 8ms gain steps and 48ms high-speed native fade vs clean bench's flat volume and 12ms native fade.",
-        "Candidate e8c54ad removes the reader's gain-stepping timer, uses full desired output gain immediately and restores 12ms native PCM fade at all rates. All three CI jobs green (40618114069); physical auditory improvement still unverified."
+        "Candidate e8c54ad removes the reader's gain-stepping timer, uses full desired output gain immediately and restores 12ms native PCM fade at all rates. All three CI jobs green (40618114069); physical auditory improvement still unverified.",
+        "2026-10-28 user again reports audible popping at >=1.8x, while below 1.8x sounds clear. No assertion of acoustic fix. This threshold changes coalescing and highlight polling; full-reader background audio previously reused one media element while clean pronunciation bench created a new one per WAV.",
+        "3f2b8ad: new background Audio per WAV, strictly stop old before next; native/audio unit and disposable Firefox integration all green in run 40756503104. Await live candidate listening; potential coalescing path remains unproven."
       ]
     }
   ],
   "previousPercent": 94,
-  "round": "reader-versus-pronunciation-bench-high-rate-gain-correction-1",
+  "round": "fresh-gecko-media-element-per-wav-1",
   "stageCompleted": {
     "Governance": 8,
     "Core port": 21,
@@ -436,9 +438,9 @@
     "Release": 3
   },
   "lastGreenCI": {
-    "runId": 40618114069,
-    "headSha": "e8c54adca6f0c5847bd0c101f79ff1f790ab85a4",
-    "note": "All 3 jobs green. Reader background audio no longer starts 2x playback at zero volume or applies four abrupt 8ms gain changes; native 2x PCM edge taper matches the clean pronunciation test bench at 12ms. Unit tests verify no onset timers and byte-for-byte equal 1x/2x tapers. Actual Firefox listening still pending."
+    "runId": 40756503104,
+    "headSha": "3f2b8adea3cbb5644af7af7b4c928b0084db616c",
+    "note": "All 3 jobs green after new Audio element per distinct Piper WAV in extension background rather than repeated source reload into a shared element. Unit regression checks 1.7x, 1.8x, 2.0x, verifies prior element stopped/source released/no overlap. No direct physical speaker evidence; user reports pops in prior candidate."
   },
   "blockers": [
     {
@@ -447,7 +449,7 @@
     },
     {
       "id": "R03",
-      "detail": "User reports real Firefox reader still pops at 2x with 0ms or 1200ms configured pause, but the same Piper voice plays clean in pronunciation test bench and pitch-preservation toggle had no audible effect. Candidate e8c54adc removes reader-only 32ms four-step gain ramp and 48ms high-speed PCM taper, aligning with 12ms test bench; real listening is required."
+      "detail": "User continues hearing sentence-start pops at 1.8x+ in live Firefox after several prior rate/gain/fade changes; <1.8x seems clear and pronunciation bench is clear. New revision 3f2b8ad matches bench's per-WAV fresh media lifecycle and has green QA, but audible effect still unverified. The separate >=1.8x sentence-group synthesis path is another unisolated difference."
     }
   ],
   "lastBrowserEvidence": {
