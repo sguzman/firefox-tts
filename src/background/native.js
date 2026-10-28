@@ -252,6 +252,7 @@
         requests.set(id, request);
         try {
           connected.postMessage({ type: "synthesize", requestId: id, text, voiceId,
+            textParts: Array.isArray(message.textParts) ? message.textParts : null,
             lang: String(message.lang || ""),
             playbackRate: Math.min(4, Math.max(0.25, Number(message.playbackRate) || 1)) });
         } catch (error) {

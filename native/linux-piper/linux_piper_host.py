@@ -348,12 +348,41 @@ def taper_pcm_edges(
                 struct.pack_into("<h", pcm, sample_offset, round(sample * gain))
 
 
+def validate_text_parts(raw_parts: Any, text: str) -> list[dict[str, Any]] | None:
+    """Accept only bounded, source-offset-consistent high-speed sentence groups."""
+    if raw_parts is None:
+        return None
+    if not isinstance(raw_parts, list) or not 2 <= len(raw_parts) <= 3:
+        raise ValueError("Piper sentence group must have two or three parts")
+    result: list[dict[str, Any]] = []
+    previous_end = 0
+    for item in raw_parts:
+        if not isinstance(item, dict):
+            raise ValueError("Malformed Piper sentence group")
+        part_text = item.get("text")
+        start = item.get("charStart")
+        pause = item.get("pauseAfterMs")
+        if (not isinstance(part_text, str) or not part_text.strip() or
+                not isinstance(start, int) or isinstance(start, bool) or
+                not isinstance(pause, (int, float)) or isinstance(pause, bool) or
+                not math.isfinite(pause) or pause < 0 or pause > 1200 or
+                start < previous_end or text[start:start + len(part_text)] != part_text):
+            raise ValueError("Invalid Piper sentence source offsets or pause")
+        result.append({"text": part_text, "charStart": start,
+                       "pauseAfterMs": float(pause)})
+        previous_end = start + len(part_text)
+    if result[0]["charStart"] != 0 or result[-1]["pauseAfterMs"] != 0:
+        raise ValueError("Invalid Piper sentence group boundaries")
+    return result
+
+
 def synthesize_worker(
     request_id: str,
     voice_id: str,
     text: str,
     cancel: threading.Event,
     playback_rate: float = 1.0,
+    text_parts: list[dict[str, Any]] | None = None,
 ) -> None:
     global _active_request_id, _active_cancel, _active_thread
 
@@ -361,30 +390,58 @@ def synthesize_worker(
         send_message({"type": "status", "requestId": request_id, "status": "Loading Piper model..."})
         voice = get_voice(voice_id)
         send_message({"type": "status", "requestId": request_id, "status": "Synthesizing with Piper..."})
-        config = synthesis_config_for_text(text)
         pcm = bytearray()
         sample_rate: int | None = None
         sample_width: int | None = None
         channels: int | None = None
+        boundaries: list[dict[str, Any]] = []
+        parts = text_parts or [{"text": text, "charStart": 0, "pauseAfterMs": 0}]
 
-        for chunk in voice.synthesize(text, config, include_alignments=False):
+        for part_index, part in enumerate(parts):
+            part_pcm = bytearray()
+            for chunk in voice.synthesize(
+                    part["text"], synthesis_config_for_text(part["text"]),
+                    include_alignments=False):
+                if cancel.is_set():
+                    send_message({"type": "cancelled", "requestId": request_id})
+                    return
+                new_format = (int(chunk.sample_rate), int(chunk.sample_width),
+                              int(chunk.sample_channels))
+                if sample_rate is None:
+                    sample_rate, sample_width, channels = new_format
+                elif new_format != (sample_rate, sample_width, channels):
+                    raise RuntimeError("Piper changed PCM format within a sentence group")
+                part_pcm.extend(chunk.audio_int16_bytes)
+
             if cancel.is_set():
                 send_message({"type": "cancelled", "requestId": request_id})
                 return
-            if sample_rate is None:
-                sample_rate = int(chunk.sample_rate)
-                sample_width = int(chunk.sample_width)
-                channels = int(chunk.sample_channels)
-            pcm.extend(chunk.audio_int16_bytes)
+            if not part_pcm or not sample_rate or not sample_width or not channels:
+                raise RuntimeError("Piper produced no audio")
+            frame_bytes = sample_width * channels
+            start_ms = (len(pcm) / frame_bytes / sample_rate) * 1000.0
+            part_duration_ms = (len(part_pcm) / frame_bytes / sample_rate) * 1000.0
+            # Suppress hard joins into a configured silence, but only apply
+            # the long high-rate fade to the group onset/ending. Otherwise
+            # repeated 48ms fades themselves cause sluggish word starts.
+            edge_ms = edge_fade_ms_for_rate(playback_rate) if (
+                part_index == 0 or part_index == len(parts) - 1
+            ) else PCM_EDGE_FADE_MS
+            taper_pcm_edges(part_pcm, sample_rate, sample_width, channels,
+                            fade_ms=edge_ms)
+            for boundary in approximate_boundaries(part["text"], part_duration_ms):
+                boundary["charIndex"] += part["charStart"]
+                boundary["audioPositionMs"] += start_ms
+                boundaries.append(boundary)
+            pcm.extend(part_pcm)
+            if part_index + 1 < len(parts) and part["pauseAfterMs"] > 0:
+                # Keep the configured pause in *wall-clock* milliseconds.
+                # The media element will consume twice as many source samples
+                # per wall second at 2.0x playback.
+                effective_rate = min(4.0, max(0.25, float(playback_rate)))
+                silence_frames = round(sample_rate * part["pauseAfterMs"] * effective_rate / 1000)
+                pcm.extend(b"\x00" * (silence_frames * frame_bytes))
 
-        if cancel.is_set():
-            send_message({"type": "cancelled", "requestId": request_id})
-            return
-        if not pcm or not sample_rate or not sample_width or not channels:
-            raise RuntimeError("Piper produced no audio")
-
-        taper_pcm_edges(pcm, sample_rate, sample_width, channels,
-                        fade_ms=edge_fade_ms_for_rate(playback_rate))
         frames = len(pcm) / (sample_width * channels)
         duration_ms = (frames / sample_rate) * 1000.0
 
@@ -405,7 +462,7 @@ def synthesize_worker(
             }
         )
 
-        for boundary in approximate_boundaries(text, duration_ms):
+        for boundary in boundaries:
             if cancel.is_set():
                 send_message({"type": "cancelled", "requestId": request_id})
                 return
@@ -451,6 +508,11 @@ def start_synthesis(message: dict[str, Any]) -> None:
     voice_id = str(message.get("voiceId") or "")
     text = str(message.get("text") or "")
     playback_rate = message.get("playbackRate", 1.0)
+    try:
+        text_parts = validate_text_parts(message.get("textParts"), text)
+    except ValueError as error:
+        send_message({"type": "error", "requestId": request_id, "message": str(error)})
+        return
 
     if not request_id or not voice_id or not text:
         send_message({"type": "error", "requestId": request_id, "message": "Missing requestId, voiceId, or text"})
@@ -470,7 +532,7 @@ def start_synthesis(message: dict[str, Any]) -> None:
         cancel = threading.Event()
         thread = threading.Thread(
             target=synthesize_worker,
-            args=(request_id, voice_id, text, cancel, playback_rate),
+            args=(request_id, voice_id, text, cancel, playback_rate, text_parts),
             name=f"piper-{request_id}",
             daemon=True,
         )

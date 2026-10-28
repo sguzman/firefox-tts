@@ -10,7 +10,7 @@ global.EdgeTtsExtension = {
 };
 
 const {
-  createPiperSentenceChunks
+  createPiperSentenceChunks, coalesceHighRatePiperChunks
 } = require("../src/content/linux-piper-engine.js");
 
 test("Piper chunks follow actual block+sentence boundaries", () => {
@@ -67,4 +67,36 @@ test("oversized press-release sentence splits at clauses without becoming fake s
     assert.ok(chunk.text.length <= 320);
   }
   assert.ok(chunks.every((chunk) => chunk.text.length <= 320));
+});
+
+
+test("2x sentence coalescing retains a fast first sentence and precise source offsets", () => {
+  const words = ["First.", "Second.", "Third.", "Fourth."];
+  const segments = words.map((text, index) => ({
+    blockIndex: 0, sentenceIndex: index, segmentIndex: index, text
+  }));
+  const input = createPiperSentenceChunks({ segments }, 0);
+  const normal = coalesceHighRatePiperChunks(input, 1.7, 300);
+  assert.equal(normal.length, 4);
+  const grouped = coalesceHighRatePiperChunks(input, 2.0, 300);
+  assert.equal(grouped.length, 2);
+  assert.equal(grouped[0], input[0], "first sentence stays instant");
+  assert.deepEqual(grouped[1].parts.map(p => p.text),
+    ["Second.", "Third.", "Fourth."]);
+  assert.deepEqual(grouped[1].parts.map(p => p.pauseAfterMs), [300, 300, 0]);
+  assert.deepEqual(grouped[1].parts.map(p => p.charStart), [0, 8, 15]);
+  assert.deepEqual(grouped[1].starts, [0, 8, 15]);
+  assert.deepEqual(grouped[1].segments.map(x => x.text),
+    ["Second.", "Third.", "Fourth."]);
+});
+
+test("high rate never bundles across separate source block boundaries", () => {
+  const segments = ["One.", "Two.", "Three.", "Four."].map((text, index) => ({
+    text, blockIndex: index < 2 ? 0 : 1, sentenceIndex: index, segmentIndex: index
+  }));
+  const input = createPiperSentenceChunks({ segments }, 0);
+  const grouped = coalesceHighRatePiperChunks(input, 2, 250);
+  assert.equal(grouped.length, 3);
+  assert.equal(grouped[1].text, "Two.");
+  assert.equal(grouped[2].parts.length, 2);
 });

@@ -169,6 +169,37 @@ class FakePiperProtocolTest(unittest.TestCase):
         self.assertEqual(struct.unpack_from("<h", raw, len(raw)-2)[0], 0)
         self.assertEqual((self.voices / "en_US-amy-low.onnx").read_bytes(), self.voice_bytes)
 
+    def test_high_rate_grouped_sentence_wav_has_real_pcm_pause_and_native_offsets(self):
+        self.handshake()
+        parts = [
+            {"text": "First.", "charStart": 0, "pauseAfterMs": 300},
+            {"text": "Second.", "charStart": 7, "pauseAfterMs": 0},
+        ]
+        self.send({"type": "synthesize", "requestId": "group", "voiceId": "en_US-amy-low",
+                   "text": "First. Second.", "textParts": parts, "playbackRate": 2.0})
+        audio, boundaries = bytearray(), []
+        deadline = time.monotonic() + 7
+        while True:
+            msg = self.read(deadline)
+            if msg["type"] == "audioChunk":
+                audio.extend(base64.b64decode(msg["data"]))
+            elif msg["type"] == "boundary":
+                boundaries.append(msg)
+            elif msg["type"] == "error":
+                self.fail(msg["message"])
+            elif msg["type"] == "synthesisEnd":
+                self.assertAlmostEqual(msg["durationMs"], 2200, delta=1)
+                break
+        with wave.open(io.BytesIO(audio), "rb") as wav:
+            self.assertEqual(wav.getnframes(), 16000 * 22 // 10)
+            pcm = wav.readframes(wav.getnframes())
+        # Fake voice synthesizes four 3200-frame chunks per sentence (800ms),
+        # with exactly 9600 zero frames (600ms of source = 300ms at 2x).
+        self.assertEqual(pcm[12800*2 : (12800+9600)*2], b"\x00" * (9600*2))
+        self.assertEqual([x["charIndex"] for x in boundaries], [0, 7])
+        self.assertAlmostEqual(boundaries[1]["audioPositionMs"], 1400, delta=1)
+        self.assertEqual((self.voices / "en_US-amy-low.onnx").read_bytes(), self.voice_bytes)
+
     def test_explicit_cpu_self_check_uses_existing_fake_model_read_only(self):
         script = HOST.parent / "self-test-cpu.sh"
         finished = subprocess.run(["bash", str(script), "en_US-amy-low"],

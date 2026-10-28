@@ -292,6 +292,68 @@
     return chunks;
   }
 
+  // At high rates, a separate WAV/decoder for every brief sentence costs
+  // enough wall time to underrun Piper prefetch and delays the word clock.
+  // Preserve the first sentence for fast startup. Bundle the following
+  // adjacent sentences in bounded groups, keeping their source indices.
+  function coalesceHighRatePiperChunks(chunks, rate, sentencePauseMs) {
+    if (!Array.isArray(chunks) || chunks.length < 3 || Number(rate) < 1.8) {
+      return chunks;
+    }
+    const result = [chunks[0]];
+    const pause = Math.max(0, Math.min(1200, Number(sentencePauseMs) || 0));
+    for (let index = 1; index < chunks.length;) {
+      const first = chunks[index];
+      const group = [first];
+      const block = first.segments?.[0]?.blockIndex;
+      let chars = String(first.text || "").length;
+      let words = first.segments?.length || 0;
+      while (group.length < 3 && index + group.length < chunks.length) {
+        const next = chunks[index + group.length];
+        const nextText = String(next.text || "");
+        if (
+          next.segments?.[0]?.blockIndex !== block ||
+          chars + 1 + nextText.length > PIPER_HARD_CLAUSE_CHARS ||
+          words + (next.segments?.length || 0) > PIPER_HARD_CLAUSE_WORDS
+        ) break;
+        group.push(next);
+        chars += nextText.length + 1;
+        words += next.segments?.length || 0;
+      }
+      if (group.length === 1) {
+        result.push(first);
+        index += 1;
+        continue;
+      }
+      let text = "";
+      const starts = [];
+      const segments = [];
+      const parts = [];
+      for (let partIndex = 0; partIndex < group.length; partIndex++) {
+        const original = group[partIndex];
+        if (partIndex) text += " ";
+        const charStart = text.length;
+        text += original.text;
+        for (const start of original.starts) starts.push(charStart + start);
+        segments.push(...original.segments);
+        parts.push({
+          text: original.text,
+          charStart,
+          pauseAfterMs: partIndex + 1 < group.length && original.sentenceFinal
+            ? pause : 0
+        });
+      }
+      result.push({
+        text, starts, segments, parts,
+        sentenceFinal: group[group.length - 1].sentenceFinal,
+        emergencyClauseSplit: group[group.length - 1].emergencyClauseSplit,
+        transformations: []
+      });
+      index += group.length;
+    }
+    return result;
+  }
+
   if (!BaseSpeechEngine || typeof createUtteranceChunks !== "function") {
     return {
       LinuxPiperSpeechEngine: null,
@@ -895,7 +957,10 @@
     _beginLinuxPiperSpeak(block, startSegmentIndex, options, speakSerial) {
       if (speakSerial !== this.linuxPiperSpeakSerial) return;
 
-      const chunks = createPiperSentenceChunks(block, startSegmentIndex);
+      const sentenceChunks = createPiperSentenceChunks(block, startSegmentIndex);
+      const chunks = coalesceHighRatePiperChunks(
+        sentenceChunks, options.rate, options.sentencePauseMs
+      );
       if (!chunks.length) {
         this.onEnd?.();
         return;
@@ -991,6 +1056,7 @@
           type: "EDGE_TTS_LINUX_PIPER_SYNTHESIZE",
           requestId: request,
           text: payload.text,
+          textParts: payload.parts || null,
           voiceId: this.currentOptions?.voice?.voiceId,
           lang: this.currentOptions?.voice?.lang,
           pronunciationRevision: Number(payload.configRevision) || 0,
@@ -1820,10 +1886,10 @@
       this.linuxPiperRequests.delete(request.requestId);
       if (this.linuxPiperRequest === request) this.linuxPiperRequest = null;
 
-      const improvedBoundaries = approximatePiperBoundaries(
-        request.payload,
-        event.durationMs
-      );
+      // Grouped WAVs contain real PCM pauses. The native worker computes
+      // per-part word offsets using actual sub-sentence frame lengths.
+      const improvedBoundaries = request.payload?.parts?.length
+        ? [] : approximatePiperBoundaries(request.payload, event.durationMs);
 
       const prepared = {
         generation: request.generation,
@@ -1931,6 +1997,7 @@
     splitPiperSentenceSegments,
     approximatePiperBoundaries,
     createPiperSentenceChunks,
+    coalesceHighRatePiperChunks,
     payloadForPiperSegments
   };
 });
