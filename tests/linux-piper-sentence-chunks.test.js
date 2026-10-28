@@ -10,7 +10,7 @@ global.EdgeTtsExtension = {
 };
 
 const {
-  createPiperSentenceChunks, coalesceHighRatePiperChunks
+  createPiperSentenceChunks, coalesceHighRatePiperChunks, LinuxPiperSpeechEngine
 } = require("../src/content/linux-piper-engine.js");
 
 test("Piper chunks follow actual block+sentence boundaries", () => {
@@ -99,4 +99,45 @@ test("high rate never bundles across separate source block boundaries", () => {
   assert.equal(grouped.length, 3);
   assert.equal(grouped[1].text, "Two.");
   assert.equal(grouped[2].parts.length, 2);
+});
+
+test("2x actual reader does not enter cross-sentence coalescing", () => {
+  const segments = ["First.", "Second.", "Third.", "Fourth."].map((text, index) => ({
+    blockIndex: 0, sentenceIndex: index, segmentIndex: index, text
+  }));
+  const engine = Object.create(LinuxPiperSpeechEngine.prototype);
+  engine.linuxPiperSpeakSerial = 2;
+  engine.generation = 0;
+  engine.linuxPiperPrepared = new Map();
+  engine.linuxPiperRequests = new Map();
+  engine._clearLinuxPiperSentencePause = () => {};
+  engine._clearLinuxPiperProgressWatchdog = () => {};
+  engine._speakLinuxPiperChunk = () => {};
+  engine._beginLinuxPiperSpeak({ segments }, 0, {
+    rate: 2, sentencePauseMs: 0,
+    voice: { __edgeTtsSource: "linux-piper", voiceId: "test" }
+  }, 2);
+  assert.deepEqual(engine.currentChunks.map(chunk => chunk.text),
+    ["First.", "Second.", "Third.", "Fourth."]);
+  assert.ok(engine.currentChunks.every(chunk => !chunk.parts),
+    "production reader may not silently group independent sentences");
+});
+
+test("async duplicate completion cannot advance the reader twice", () => {
+  const engine = Object.create(LinuxPiperSpeechEngine.prototype);
+  engine.generation = 5;
+  engine.currentChunks = [{ text: "A." }, { text: "B." }, { text: "C." }];
+  engine.currentChunkIndex = 0;
+  engine.linuxPiperPlaybackIndex = 0;
+  engine.currentOptions = { sentencePauseMs: 0 };
+  engine.linuxPiperPrepared = new Map();
+  let starts = 0;
+  engine._clearBoundaryClock = () => {};
+  engine._clearLinuxPiperProgressWatchdog = () => {};
+  engine._speakLinuxPiperChunk = () => { starts += 1; };
+  const previous = { chunkIndex: 0, payload: { sentenceFinal: true } };
+  engine._finishLinuxPiperPreparedPlayback(5, previous);
+  engine._finishLinuxPiperPreparedPlayback(5, previous);
+  assert.equal(engine.currentChunkIndex, 1);
+  assert.equal(starts, 1);
 });
