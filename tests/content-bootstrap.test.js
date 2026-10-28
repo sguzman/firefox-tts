@@ -54,7 +54,7 @@ test("reader bootstrap ping, explicit toggle, quit, and re-open preserve a singl
     await new Promise(resolve => setImmediate(resolve));
     return response;
   };
-  assert.equal((await respond("EDGE_TTS_PING_V2")).revision, 19);
+  assert.equal((await respond("EDGE_TTS_PING_V2")).revision, 20);
   assert.equal((await respond("EDGE_TTS_TOGGLE_V2")).accepted, true);
   assert.equal(opened, 1);
   assert.equal((await respond("EDGE_TTS_TOGGLE_V2")).accepted, true);
