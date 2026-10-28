@@ -8,8 +8,12 @@ const source = fs.readFileSync(path.join(__dirname, "../src/background/audio.js"
 function harness() {
   const urls = new Set(), sent = [], ticks = new Map(), pauses = new Map();
   let serial = 0, audio;
+  const players = [];
   class FakeAudio {
-    constructor() { this.currentTime = 0; this.volume = 1; this.playbackRate = 1; audio = this; }
+    constructor() {
+      this.currentTime = 0; this.volume = 1; this.playbackRate = 1;
+      this.paused = true; audio = this; players.push(this);
+    }
     play() {
       if (this.failNextPlay) {
         this.failNextPlay = false;
@@ -41,7 +45,7 @@ function harness() {
   const player = global.FirefoxTtsBackground.player;
   const audioChunks = [Buffer.from("RIFF" + "x".repeat(250)).toString("base64")];
   return {
-    player, sent, urls, ticks, pauses, audioChunks,
+    player, sent, urls, ticks, pauses, audioChunks, players,
     get audio() { return audio; },
     tickAll() { for (const { fn } of [...ticks.values()]) fn(); },
     pauseAll() { for (const fn of [...pauses.values()]) fn(); },
@@ -69,6 +73,35 @@ test("150 rapid cross-tab play/stop cycles release every blob and timer", async 
     assert.equal(h.pauses.size, 0);
     assert.equal(h.player.getSession(), null);
   }
+});
+
+test("1.8x and 2.0x reader WAVs use fresh clean-test-bench decoders with no overlap", async () => {
+  const h = harness();
+  for (const rate of [1.7, 1.8, 2.0]) {
+    const first = msg("first-" + rate, h.audioChunks);
+    first.playbackRate = rate;
+    assert.equal((await h.player.handle(first, 15)).accepted, true);
+    const former = h.audio;
+    assert.equal(former.paused, false);
+    assert.equal(former.preservesPitch, true);
+    assert.equal(h.urls.size, 1);
+
+    const second = msg("second-" + rate, h.audioChunks);
+    second.playbackRate = rate;
+    assert.equal((await h.player.handle(second, 15)).accepted, true);
+    assert.notEqual(h.audio, former, "each WAV must start with a fresh Gecko decoder");
+    assert.equal(former.paused, true, "old WAV must be stopped before new starts");
+    assert.equal(former.src, "", "old decoder source must be released");
+    assert.equal(h.audio.paused, false);
+    assert.equal(h.audio.playbackRate, rate);
+    assert.equal(h.players.filter(p => !p.paused).length, 1,
+      "only one audio element can be playing");
+    assert.equal(h.urls.size, 1, "no orphaned WAV blobs");
+    assert.equal(h.player.stopTab(15), true);
+    assert.equal(h.players.filter(p => !p.paused).length, 0);
+  }
+  assert.equal(h.urls.size, 0);
+  assert.equal(h.ticks.size, 0);
 });
 
 test("Superseding old playback prevents stale owner emissions and cleans media", async () => {
