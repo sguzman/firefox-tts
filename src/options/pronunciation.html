@@ -25,13 +25,17 @@
       <div class="test-bench-heading">
         <div>
           <h2>Pronunciation test bench</h2>
-          <p>Uses the current editor state, including unsaved rule edits. Amy Low synthesizes at native 1.0x; the slider changes only finished-audio playback speed.</p>
+          <p>Uses the current editor state, including unsaved rule edits. Amy Low synthesizes at native 1.0x; speed changes only playback. To diagnose pops at 2×, play the <strong>same test WAV</strong> with “Preserve pitch” on, then off. Off intentionally raises the voice's pitch; it bypasses Firefox's time-stretch algorithm. The switch affects this test only.</p>
         </div>
         <div class="test-controls">
           <label class="test-speed-label">
             Speed
             <input id="test-speed" type="range" min="0.5" max="8" step="0.05" value="1">
             <output id="test-speed-value">1.00x</output>
+          </label>
+          <label class="test-pitch-label" title="Diagnostic only. Turn off to bypass Firefox's pitch-preserving time-stretch algorithm; the voice will sound higher at 2×. Does not change the reader or save a preference.">
+            <input id="test-preserve-pitch" type="checkbox" checked>
+            Preserve pitch (Firefox)
           </label>
           <button id="test-play" type="button" class="primary">Play test</button>
           <button id="test-stop" type="button">Stop</button>

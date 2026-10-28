@@ -236,3 +236,12 @@ button[data-test-regex]:disabled {
   opacity: 0.55;
   cursor: default;
 }
+
+/* Playback-mode diagnosis lives only in the pronunciation test bench. */
+.test-pitch-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}

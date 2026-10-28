@@ -123,6 +123,10 @@
     );
   }
 
+  function currentTestPreservesPitch() {
+    return $("#test-preserve-pitch")?.checked !== false;
+  }
+
   function applyTestSpeed() {
     const speed = currentTestSpeed();
     if ($("#test-speed-value")) {
@@ -130,9 +134,9 @@
     }
     if (testAudio) {
       testAudio.playbackRate = speed;
-      testAudio.preservesPitch = true;
+      testAudio.preservesPitch = currentTestPreservesPitch();
       if ("webkitPreservesPitch" in testAudio) {
-        testAudio.webkitPreservesPitch = true;
+        testAudio.webkitPreservesPitch = currentTestPreservesPitch();
       }
     }
   }
@@ -183,9 +187,9 @@
     testAudioUrl = URL.createObjectURL(blob);
     testAudio = new Audio(testAudioUrl);
     testAudio.preload = "auto";
-    testAudio.preservesPitch = true;
+    testAudio.preservesPitch = currentTestPreservesPitch();
     if ("webkitPreservesPitch" in testAudio) {
-      testAudio.webkitPreservesPitch = true;
+      testAudio.webkitPreservesPitch = currentTestPreservesPitch();
     }
     testAudioKey = cacheKey;
     applyTestSpeed();
@@ -210,7 +214,7 @@
     applyTestSpeed();
     await audio.play();
     setTestStatus(
-      `${statusPrefix ? `${statusPrefix} · ` : ""}Playing Amy Low · ${currentTestSpeed().toFixed(2)}x`
+      `${statusPrefix ? `${statusPrefix} · ` : ""}Playing Amy Low · ${currentTestSpeed().toFixed(2)}x · pitch ${currentTestPreservesPitch() ? "preserved" : "uncorrected (diagnostic)"}`
     );
     return audio;
   }
@@ -884,10 +888,14 @@
       );
     }
   });
+  $("#test-preserve-pitch").addEventListener("change", () => {
+    applyTestSpeed();
+    setTestStatus(`Diagnostic mode: pitch ${currentTestPreservesPitch() ? "preserved" : "uncorrected"} · replay the same WAV`);
+  });
   $("#preview-source").addEventListener("input", updatePreview);
 
   for (const element of document.querySelectorAll(
-    "input:not([data-key]):not([data-value]):not([data-pattern]):not([data-replace]):not(#test-speed), select, #acronym-tokens, #drop-tokens"
+    "input:not([data-key]):not([data-value]):not([data-pattern]):not([data-replace]):not(#test-speed):not(#test-preserve-pitch), select, #acronym-tokens, #drop-tokens"
   )) {
     element.addEventListener("input", handleRuleChange);
     element.addEventListener("change", handleRuleChange);
