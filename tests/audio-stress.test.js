@@ -261,3 +261,19 @@ test("first word highlighted immediately and 2x boundary timer is 16ms", async (
   h.player.stopAll();
   assert.equal(h.timerDurations().length, 0);
 });
+
+test("extension audio emits clock progress between word boundaries", async () => {
+  const h = harness();
+  const request = msg("progress", h.audioChunks, [0, 10]);
+  request.playbackRate = 2;
+  assert.equal((await h.player.handle(request, 5)).accepted, true);
+  h.audio.currentTime = .3;
+  h.tickAll();
+  h.audio.currentTime = .8;
+  h.tickAll();
+  const times = h.sent.filter(e => e.message.event?.type === "time")
+    .map(e => e.message.event.currentTime);
+  assert.ok(times.includes(.3));
+  assert.ok(times.includes(.8));
+  assert.equal(h.player.stopTab(5), true);
+});
