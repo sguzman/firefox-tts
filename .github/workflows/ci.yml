@@ -28,6 +28,16 @@ jobs:
         run: bash -n native/linux-piper/install-native-host.sh native/linux-piper/uninstall-native-host.sh native/linux-piper/self-test-cpu.sh
       - name: Native framing and disposable-home isolation tests
         run: python3 -m unittest discover -s tests -p 'test_*.py' -v
+      - name: Exercise optional high-speed batching script in disposable checkout
+        run: |
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+          git clone --quiet --no-hardlinks --branch main . "$tmp/checkout"
+          cd "$tmp/checkout"
+          python3 scripts/firefox_tts_high_speed_fix.py
+          node --check src/content/linux-piper-engine.js
+          node --check src/background/native.js
+          python3 -m py_compile native/linux-piper/linux_piper_host.py
 
   firefox-browser-smoke:
     runs-on: ubuntu-24.04
