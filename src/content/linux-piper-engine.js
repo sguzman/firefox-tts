@@ -419,6 +419,36 @@
       this.directObjectUrl = "";
     }
 
+    async fadeOutForSeek() {
+      // A text click interrupts audio at an arbitrary PCM sample; immediately
+      // pausing/unloading that sample makes an audible discontinuity. Ramp the
+      // existing output down before the normal authoritative cancel/seek.
+      // This only runs on an explicit click, never on the idle/render path.
+      if (!this.directSessionMode) return false;
+      const fallback = this.linuxPiperOffscreenPlayback;
+      if (fallback) {
+        try {
+          const reply = await root.chrome?.runtime?.sendMessage?.({
+            type: "EDGE_TTS_PIPER_OFFSCREEN_FADE_FOR_SEEK",
+            playbackId: fallback.playbackId
+          });
+          return reply?.accepted === true;
+        } catch (_error) {
+          return false;
+        }
+      }
+      const element = this.directAudio;
+      if (!element || element.paused) return false;
+      const originalVolume = Math.max(0, Number(element.volume) || 0);
+      if (!originalVolume) return false;
+      for (let step = 1; step <= 6; step += 1) {
+        await new Promise(resolve => root.setTimeout(resolve, 4));
+        if (this.directAudio !== element || element.paused) return false;
+        element.volume = originalVolume * (1 - step / 6);
+      }
+      return true;
+    }
+
     _resetDirectState({ keepMode = true } = {}) {
       this._clearBoundaryClock();
       const audio = this.directAudio;
