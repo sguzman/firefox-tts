@@ -49,6 +49,13 @@ function harness() {
     get audio() { return audio; },
     tickAll() { for (const { fn } of [...ticks.values()]) fn(); },
     pauseAll() { for (const fn of [...pauses.values()]) fn(); },
+    flushOnePause() {
+      const first = pauses.entries().next().value;
+      if (!first) return false;
+      pauses.delete(first[0]);
+      first[1]();
+      return true;
+    },
     timerDurations() { return [...ticks.values()].map(t => t.ms); }
   };
 }
@@ -276,4 +283,36 @@ test("extension audio emits clock progress between word boundaries", async () =>
   assert.ok(times.includes(.3));
   assert.ok(times.includes(.8));
   assert.equal(h.player.stopTab(5), true);
+});
+
+test("background seek fades to silence without cutting live WAV early", async () => {
+  const h = harness();
+  const input = msg("seek-wav", h.audioChunks);
+  input.volume = .8;
+  assert.equal((await h.player.handle(input, 5)).accepted, true);
+  const audio = h.audio;
+  const fading = h.player.handle({
+    type: "EDGE_TTS_PIPER_OFFSCREEN_FADE_FOR_SEEK", playbackId: "seek-wav"
+  }, 5);
+  for (let step = 0; step < 6; step += 1) {
+    assert.equal(h.flushOnePause(), true, "each gain step has a short timer");
+    await Promise.resolve();
+  }
+  const result = await fading;
+  assert.equal(result.accepted, true);
+  assert.equal(audio.paused, false, "only caller's authoritative cancel stops audio");
+  assert.ok(audio.volume <= 1e-9);
+  assert.equal(h.player.stopTab(5), true);
+});
+
+test("background fade exits when hard Stop supersedes the old WAV", async () => {
+  const h = harness();
+  assert.equal((await h.player.handle(msg("old", h.audioChunks), 3)).accepted, true);
+  const fading = h.player.handle({
+    type: "EDGE_TTS_PIPER_OFFSCREEN_FADE_FOR_SEEK", playbackId: "old"
+  }, 3);
+  assert.equal(h.player.stopTab(3), true);
+  assert.equal(h.flushOnePause(), true);
+  assert.equal((await fading).accepted, false);
+  assert.equal(h.urls.size, 0);
 });
