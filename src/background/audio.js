@@ -167,12 +167,33 @@
       return { accepted: false, error: error.message || String(error) };
     }
   }
+  async function fadeForSeek(current) {
+    // Explicit text seeking interrupts audio at an arbitrary PCM sample.
+    // Lower gain over 24ms before the caller cancels the old WAV. Never
+    // block normal Stop/Quit, and bail if the session gets superseded.
+    const element = audio;
+    if (!element || element.paused) return { accepted: false };
+    const originalVolume = Math.max(0, Number(element.volume) || 0);
+    if (!originalVolume) return { accepted: false };
+    for (let step = 1; step <= 6; step += 1) {
+      await new Promise(resolve => setTimeout(resolve, 4));
+      if (session !== current || audio !== element || element.paused) {
+        return { accepted: false };
+      }
+      element.volume = originalVolume * (1 - step / 6);
+    }
+    return { accepted: true };
+  }
+
   async function handle(message, tabId) {
     const type = message?.type;
     if (type === "EDGE_TTS_PIPER_OFFSCREEN_PLAY") return play(message, tabId);
     const current = session;
     if (!current || current.id !== String(message.playbackId || "") || current.tabId !== tabId)
       return { accepted: false, error: "Playback session is not owned by this tab" };
+    if (type === "EDGE_TTS_PIPER_OFFSCREEN_FADE_FOR_SEEK") {
+      return fadeForSeek(current);
+    }
     if (type === "EDGE_TTS_PIPER_OFFSCREEN_STOP") return { accepted: stopCurrent() };
     if (type === "EDGE_TTS_PIPER_OFFSCREEN_PAUSE") {
       current.paused = true;
