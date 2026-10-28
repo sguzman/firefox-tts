@@ -20,14 +20,14 @@ function harness({ initialReady = false, failFirstToggle = false } = {}) {
         calls.push(["message", tabId, message.type]);
         if (message.type === "EDGE_TTS_PING_V2") {
           if (!ready) throw new Error("No receiver");
-          return { ready: true, revision: 19 };
+          return { ready: true, revision: 20 };
         }
         if (message.type === "EDGE_TTS_TOGGLE_V2") {
           if (firstToggle && failFirstToggle) {
             firstToggle = false;
             throw new Error("Invalidated context");
           }
-          return { accepted: true, revision: 19 };
+          return { accepted: true, revision: 20 };
         }
         throw new Error("Unrecognized message");
       }
