@@ -1587,10 +1587,24 @@
       this.activeBatchRequest = null;
       this.activeBatchEndBlockIndex = -1;
 
-      // A click is an authoritative seek. Never try to resume or reuse a
-      // possibly stale paused transport from this tab. Retire local state,
-      // hard-stop every tab-owned backend/offscreen request, then claim a
-      // completely fresh audio session at the clicked segment.
+      // Fade out the currently audible sample before cutting the transport.
+      // Interrupting at arbitrary source samples produces a click, especially
+      // at 1.8x when the playback phase is difficult to predict. Allow the
+      // latest click to win if multiple seek gestures arrive in quick succession.
+      try {
+        await this.speech?.fadeOutForSeek?.();
+      } catch (error) {
+        console.debug("Firefox TTS could not fade old seek audio.", error);
+      }
+      if (
+        lifecycle !== this.lifecycleSerial ||
+        !this.enabled ||
+        this.quitRequested ||
+        this.stopped
+      ) return;
+
+      // A click is an authoritative seek. Never resume the old prepared WAV.
+      // Retire local playback, then hard-stop tab-owned backend requests.
       try {
         this.discardLocalSpeechState();
       } catch (error) {
