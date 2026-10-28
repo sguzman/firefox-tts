@@ -1,5 +1,5 @@
 (function bootstrapEdgeTts(root) {
-  const SESSION_REVISION = 18;
+  const SESSION_REVISION = 19;
   const extension = root.EdgeTtsExtension;
   if (!extension?.Reader?.ReaderApp) {
     console.error("Firefox TTS reader modules did not initialize.");
