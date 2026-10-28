@@ -3,9 +3,12 @@
 (() => {
   "use strict";
   const bridge = globalThis.FirefoxTtsBackground || (globalThis.FirefoxTtsBackground = {});
-  const audio = new Audio();
-  audio.preload = "auto";
-  audio.preservesPitch = true;
+  // A WAV is a complete independent decode session. Reusing a media element
+  // across new sources repeatedly tears down/restarts Firefox's 2x pitch
+  // processor; the clean pronunciation test bench uses a new element for
+  // each synthesized WAV instead. Give each WAV its own media element and
+  // retire the previous owner before starting the next, with no overlap.
+  let audio = null;
   let session = null;
   let tickTimer = null;
   let pauseTimer = null;
@@ -31,7 +34,7 @@
   }
   function tick() {
     const current = session;
-    if (!current || current.paused) return;
+    if (!current || current.paused || !audio) return;
     const time = Math.max(0, Number(audio.currentTime) || 0);
     // More frequent source-clock sampling at high playback rates.
     const lead = current.playbackRate >= 1.8 ? 0.025 : 0.015;
@@ -57,8 +60,10 @@
     audio.onplaying = null;
     audio.onended = null;
     audio.onerror = null;
-    try { audio.pause(); } catch {}
-    try { audio.removeAttribute("src"); audio.load(); } catch {}
+    const retiredAudio = audio;
+    audio = null;
+    try { retiredAudio?.pause?.(); } catch {}
+    try { retiredAudio?.removeAttribute?.("src"); retiredAudio?.load?.(); } catch {}
     if (previous?.url) URL.revokeObjectURL(previous.url);
     if (previous && notify) emit(previous, { type: "stopped" });
     return Boolean(previous);
@@ -92,6 +97,10 @@
       const chunks = decodeChunks(message.audioChunks);
       const blob = new Blob(chunks, { type: "audio/wav" });
       stopCurrent();
+      // The same fresh-media lifecycle used by the clean test bench.
+      audio = new Audio();
+      audio.preload = "auto";
+      audio.preservesPitch = true;
       url = URL.createObjectURL(blob);
       const boundaries = (Array.isArray(message.boundaryOffsets) ? message.boundaryOffsets : [])
         .slice(0, 20_000)
