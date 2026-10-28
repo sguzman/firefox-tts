@@ -958,9 +958,11 @@
       if (speakSerial !== this.linuxPiperSpeakSerial) return;
 
       const sentenceChunks = createPiperSentenceChunks(block, startSegmentIndex);
-      const chunks = coalesceHighRatePiperChunks(
-        sentenceChunks, options.rate, options.sentencePauseMs
-      );
+      // Keep each spoken sentence an independent WAV at every rate.
+      // The >=1.8x coalescer was an unverified optimization that moved
+      // sentence boundaries inside a single WAV, unlike the clean bench.
+      // Preserve exact source progress until real acoustic acceptance.
+      const chunks = sentenceChunks;
       if (!chunks.length) {
         this.onEnd?.();
         return;
@@ -1253,7 +1255,14 @@
       prepared,
       { pauseAlreadyApplied = false } = {}
     ) {
-      if (activeGeneration !== this.generation) return;
+      // Audio may report completion more than once after async fallback,
+      // teardown, or tab-media recovery. Advance a chunk exactly once.
+      if (
+        activeGeneration !== this.generation ||
+        !prepared ||
+        prepared.chunkIndex !== this.currentChunkIndex ||
+        this.linuxPiperPlaybackIndex !== prepared.chunkIndex
+      ) return;
 
       this._clearBoundaryClock();
       this._clearLinuxPiperProgressWatchdog();
@@ -1569,23 +1578,23 @@
       // read-only and only becomes true when the tab itself produces sound.
       // Therefore the normal Piper reader path must render audio in this tab.
       // The offscreen document remains a fallback for page-media failures.
-      // A fresh HTMLAudioElement for every sentence loses Firefox's
-      // per-element media activation and recreates the pitch/time-stretch
-      // processor at each boundary (most audible above ~1.8x). Keep one
-      // decoder/element for the whole reader when page playback is allowed.
-      // This only changes source between completed WAVs; _resetDirectState
-      // still destroys it synchronously on Stop/Quit/cancel.
-      const audio = this.directAudio ||
-        root.document?.createElement?.("audio") ||
-        new root.Audio();
-      audio.onended = null;
-      audio.onerror = null;
-      try {
-        audio.pause?.();
-        audio.removeAttribute?.("src");
-        audio.load?.();
-      } catch (_error) {}
+      // Match the clean pronunciation bench on the *page-owned* path too:
+      // previous fixes created fresh Audio only in the extension fallback.
+      // A new decoder per WAV prevents old Gecko media state carrying over.
+      const previousAudio = this.directAudio;
+      if (previousAudio) {
+        previousAudio.onended = null;
+        previousAudio.onerror = null;
+        try {
+          previousAudio.pause?.();
+          previousAudio.removeAttribute?.("src");
+          previousAudio.load?.();
+        } catch (_error) {}
+      }
+      this.directAudio = null;
       this._revokeObjectUrl();
+      const audio = root.document?.createElement?.("audio") ||
+        new root.Audio();
       this.directObjectUrl = root.URL.createObjectURL(
         new Blob(prepared.audio, { type: "audio/wav" })
       );
