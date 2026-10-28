@@ -419,12 +419,14 @@
         "Fix candidate 96ec1aa: content-site autoplay NotAllowed falls back automatically to extension-owned player; subsequent sentences stay on same transport. CI uses Firefox normal autoplay policy instead of silently disabling it.",
         "Real Firefox QA verified >=2 consecutive WAVs, nonzero reader boundaries, and Stop/Quit/reopen with no overlapping HTMLAudioElements; post-decoder 32ms high-rate volume attack and preserved audio element have synthetic regression tests.",
         "Pending: user's live listening confirmation that 96ec1aa fixes initial start, entire text progression and 1.9x popping, plus focus and final acceptance.",
-        "2026-10-27 user confirmed 2x sentence starts laggy and word highlight trails after previous high-speed mitigation. Candidate e68a435 fixes dropped first-word boundary and decreases high-speed polling 50→16ms, tested in Gecko; no real acoustic confirmation."
+        "2026-10-27 user confirmed 2x sentence starts laggy and word highlight trails after previous high-speed mitigation. Candidate e68a435 fixes dropped first-word boundary and decreases high-speed polling 50→16ms, tested in Gecko; no real acoustic confirmation.",
+        "2026-10-27 user independently confirmed pronunciation test bench at 2x has no onset pops, whereas full reader pops regardless of 0ms vs 1200ms sentence pause; preserve-pitch on/off sounded identical. Distinct pipelines identified: reader uses four abrupt 8ms gain steps and 48ms high-speed native fade vs clean bench's flat volume and 12ms native fade.",
+        "Candidate e8c54ad removes the reader's gain-stepping timer, uses full desired output gain immediately and restores 12ms native PCM fade at all rates. All three CI jobs green (40618114069); physical auditory improvement still unverified."
       ]
     }
   ],
   "previousPercent": 94,
-  "round": "high-rate-first-boundary-and-gecko-handoff-benchmark-1",
+  "round": "reader-versus-pronunciation-bench-high-rate-gain-correction-1",
   "stageCompleted": {
     "Governance": 8,
     "Core port": 21,
@@ -434,9 +436,9 @@
     "Release": 3
   },
   "lastGreenCI": {
-    "runId": 40585402522,
-    "headSha": "e68a435a1a934517974ff55746d1be8e2ae666ee",
-    "note": "3 jobs green on retry; first smoke attempt timed out in disposable Firefox startup (runner, not reader). QA-only Gecko normal-autoplay and 2x/0ms sentence pause passed. Synthetic Firefox-owned audio measured 8.0ms between ended and next started events; it excludes real ONNX inference and default 300ms configured pause. Native word boundaries remain approximate."
+    "runId": 40618114069,
+    "headSha": "e8c54adca6f0c5847bd0c101f79ff1f790ab85a4",
+    "note": "All 3 jobs green. Reader background audio no longer starts 2x playback at zero volume or applies four abrupt 8ms gain changes; native 2x PCM edge taper matches the clean pronunciation test bench at 12ms. Unit tests verify no onset timers and byte-for-byte equal 1x/2x tapers. Actual Firefox listening still pending."
   },
   "blockers": [
     {
@@ -445,7 +447,7 @@
     },
     {
       "id": "R03",
-      "detail": "User still heard sentence-start lag/popping at 2x in earlier candidate. Gecko synthetic at 2x + 0ms sentence pause measured 8.0ms backend handoff, but default setting is 300ms pause and real ONNX audio timing is unmeasured. Latest immediate boundary/high-speed clock fix must be assessed in user's Firefox."
+      "detail": "User reports real Firefox reader still pops at 2x with 0ms or 1200ms configured pause, but the same Piper voice plays clean in pronunciation test bench and pitch-preservation toggle had no audible effect. Candidate e8c54adc removes reader-only 32ms four-step gain ramp and 48ms high-speed PCM taper, aligning with 12ms test bench; real listening is required."
     }
   ],
   "lastBrowserEvidence": {
