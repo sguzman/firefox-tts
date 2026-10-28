@@ -1599,8 +1599,7 @@
       if (
         lifecycle !== this.lifecycleSerial ||
         !this.enabled ||
-        this.quitRequested ||
-        this.stopped
+        this.quitRequested
       ) return;
 
       // A click is an authoritative seek. Never resume the old prepared WAV.
