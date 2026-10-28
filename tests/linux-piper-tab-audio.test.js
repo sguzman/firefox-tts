@@ -92,6 +92,30 @@ test("2x page-owned reader creates a new decoder for each WAV, releasing old med
   }
 });
 
+
+test("click-to-seek tapers a playing page WAV to silence before hard cancellation", async () => {
+  const engine = Object.create(LinuxPiperSpeechEngine.prototype);
+  const audio = new FakeAudio();
+  audio.paused = false;
+  audio.volume = .75;
+  engine.directSessionMode = true;
+  engine.linuxPiperOffscreenPlayback = null;
+  engine.directAudio = audio;
+  const faded = await engine.fadeOutForSeek();
+  assert.equal(faded, true);
+  assert.equal(audio.paused, false, "do not hard-cut the WAV during taper");
+  assert.ok(audio.volume <= 1e-9, "audio must reach silence before cancel");
+  assert.equal(elements.at(-1), audio);
+});
+
+test("click-to-seek skips taper when no audio is playing", async () => {
+  const engine = Object.create(LinuxPiperSpeechEngine.prototype);
+  engine.directSessionMode = true;
+  engine.linuxPiperOffscreenPlayback = null;
+  engine.directAudio = new FakeAudio();
+  assert.equal(await engine.fadeOutForSeek(), false);
+});
+
 test.after(() => {
   global.URL = originalURL;
   global.Blob = originalBlob;
