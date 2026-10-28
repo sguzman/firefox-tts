@@ -57,9 +57,11 @@
     session = null;
     endTick();
     clearPause();
-    audio.onplaying = null;
-    audio.onended = null;
-    audio.onerror = null;
+    if (audio) {
+      audio.onplaying = null;
+      audio.onended = null;
+      audio.onerror = null;
+    }
     const retiredAudio = audio;
     audio = null;
     try { retiredAudio?.pause?.(); } catch {}
