@@ -12,6 +12,9 @@
   const segmentIndexForCharIndex = root.EdgeTtsExtension?.TextModel?.segmentIndexForCharIndex;
   const pronunciation = root.EdgeTtsExtension?.Pronunciation;
   const PIPER_SYNTHESIS_TIMEOUT_MS = 20_000;
+  // Match the pronunciation bench's exact-WAV replay without durable audio data.
+  const PIPER_WAV_CACHE_MAX_BYTES = 12 * 1024 * 1024;
+  const PIPER_WAV_CACHE_MAX_ENTRIES = 12;
   const PIPER_SOFT_CLAUSE_CHARS = 240;
   const PIPER_HARD_CLAUSE_CHARS = 320;
   const PIPER_SOFT_CLAUSE_WORDS = 38;
@@ -375,6 +378,8 @@
 
       this.linuxPiperRequests = new Map();
       this.linuxPiperPrepared = new Map();
+      this.linuxPiperWavCache = new Map();
+      this.linuxPiperWavCacheBytes = 0;
       this.linuxPiperRequest = null;
       this.linuxPiperPlaybackIndex = -1;
       this.linuxPiperPausedInPlace = false;
@@ -1030,6 +1035,70 @@
       this._speakLinuxPiperChunk(generation);
     }
 
+    _linuxPiperWavCacheKey(payload) {
+      if (!payload || !this.currentOptions?.voice?.voiceId) return null;
+      return JSON.stringify([
+        String(this.currentOptions.voice.voiceId),
+        String(payload.text || ""),
+        payload.parts || null,
+        this.directPlaybackRate,
+        Number(payload.configRevision) || 0,
+        Number(payload.configSavedAt) || 0
+      ]);
+    }
+
+    _storeLinuxPiperCachedWav(request, durationMs) {
+      const key = this._linuxPiperWavCacheKey(request?.payload);
+      if (!key || !request?.audio?.length || !request?.audioBase64?.length) return;
+      const bytes = request.audio.reduce((sum, chunk) => sum + chunk.byteLength, 0)
+        + request.audioBase64.reduce((sum, chunk) => sum + chunk.length, 0);
+      if (bytes > PIPER_WAV_CACHE_MAX_BYTES) return;
+      const cache = this.linuxPiperWavCache || (this.linuxPiperWavCache = new Map());
+      let used = this.linuxPiperWavCacheBytes || 0;
+      const existing = cache.get(key);
+      if (existing) {
+        used -= existing.bytes;
+        cache.delete(key);
+      }
+      while (
+        cache.size >= PIPER_WAV_CACHE_MAX_ENTRIES ||
+        used + bytes > PIPER_WAV_CACHE_MAX_BYTES
+      ) {
+        const oldestKey = cache.keys().next().value;
+        if (oldestKey === undefined) break;
+        used -= cache.get(oldestKey).bytes;
+        cache.delete(oldestKey);
+      }
+      cache.set(key, {
+        audio: request.audio,
+        audioBase64: request.audioBase64,
+        boundaries: request.boundaries,
+        durationMs: Math.max(0, Number(durationMs) || 0),
+        bytes
+      });
+      this.linuxPiperWavCacheBytes = used + bytes;
+    }
+
+    _getLinuxPiperCachedPrepared(generation, chunkIndex, prefetch = false) {
+      const payload = this.currentChunks?.[chunkIndex];
+      const key = this._linuxPiperWavCacheKey(payload);
+      const cache = this.linuxPiperWavCache;
+      if (!key || !cache?.has(key)) return null;
+      const cached = cache.get(key);
+      cache.delete(key);
+      cache.set(key, cached); // Bounded least-recently-used eviction order.
+      const precise = payload?.parts?.length
+        ? [] : approximatePiperBoundaries(payload, cached.durationMs);
+      return {
+        generation, chunkIndex, payload,
+        audio: cached.audio,
+        audioBase64: cached.audioBase64,
+        boundaries: precise.length ? precise : cached.boundaries,
+        boundariesArePrepared: precise.length > 0,
+        prefetch
+      };
+    }
+
     _activeLinuxPiperRequestForChunk(chunkIndex) {
       for (const request of this.linuxPiperRequests.values()) {
         if (request.chunkIndex === chunkIndex) return request;
@@ -1049,6 +1118,17 @@
 
       const payload = this.currentChunks?.[chunkIndex];
       if (!payload) return false;
+      // Repeating a clicked word now replays identical WAV bytes, as in the
+      // clean test bench, instead of drawing another stochastic Piper output.
+      const cached = this._getLinuxPiperCachedPrepared(generation, chunkIndex, prefetch);
+      if (cached) {
+        this.linuxPiperPrepared.set(chunkIndex, cached);
+        if (!prefetch && chunkIndex === this.currentChunkIndex) {
+          this.linuxPiperPrepared.delete(chunkIndex);
+          this._playLinuxPiperPrepared(generation, cached);
+        }
+        return true;
+      }
 
       const request = requestId(generation, chunkIndex);
       const timeoutId = root.setTimeout(() => {
@@ -1924,6 +2004,7 @@
 
       this.linuxPiperRequests.delete(request.requestId);
       if (this.linuxPiperRequest === request) this.linuxPiperRequest = null;
+      this._storeLinuxPiperCachedWav(request, event.durationMs);
 
       // Grouped WAVs contain real PCM pauses. The native worker computes
       // per-part word offsets using actual sub-sentence frame lengths.
