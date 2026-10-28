@@ -7,7 +7,7 @@
     "date": "2026-10-27",
     "note": "Repository initially contained only LICENSE and .gitignore"
   },
-  "asOf": "2026-10-27",
+  "asOf": "2026-10-28",
   "completedWeight": 94,
   "totalWeight": 100,
   "percent": 94,
@@ -425,12 +425,14 @@
         "2026-10-28 user again reports audible popping at >=1.8x, while below 1.8x sounds clear. No assertion of acoustic fix. This threshold changes coalescing and highlight polling; full-reader background audio previously reused one media element while clean pronunciation bench created a new one per WAV.",
         "3f2b8ad: new background Audio per WAV, strictly stop old before next; native/audio unit and disposable Firefox integration all green in run 40756503104. Await live candidate listening; potential coalescing path remains unproven.",
         "2026-10-28 user explicitly confirmed 3f2b8ad still pops at 1.8x+ and reports intermittent repeated sentences; real Firefox audio acceptance remains FAILED, not complete.",
-        "Candidate f344ac2 (after aa0b43a / 000c0faa): page-owned reader now also uses a fresh media element per WAV, production disables >=1.8x cross-sentence coalescing, chunk completion is idempotent, and background playback provides 0.25s source-clock updates for stall detection. Synthetic engine probes passed; CI and audible user verification are pending."
+        "Candidate f344ac2 (after aa0b43a / 000c0faa): page-owned reader now also uses a fresh media element per WAV, production disables >=1.8x cross-sentence coalescing, chunk completion is idempotent, and background playback provides 0.25s source-clock updates for stall detection. Synthetic engine probes passed; CI and audible user verification are pending.",
+        "2026-10-28 user confirms revision 19 improved but intermittently still hiccups near 1.8x, particularly on click-to-seek; audible acceptance remains open.",
+        "Revision 20 candidate: click-to-seek now ramps page-owned or background-owned live media volume to silence over 24ms before the existing authoritative cancel. Concurrent seek gestures only let the latest proceed; the old stop/release safety model is preserved. Isolated JS runtime mocks checked both audio fades and click ordering; full CI and live listening remain unverified."
       ]
     }
   ],
   "previousPercent": 94,
-  "round": "page-and-extension-decoder-parity-plus-once-only-completion-1",
+  "round": "click-seek-audio-discontinuity-fade-r20",
   "stageCompleted": {
     "Governance": 8,
     "Core port": 21,
@@ -451,7 +453,7 @@
     },
     {
       "id": "R03",
-      "detail": "Confirmed still popping >=1.8x on previous candidate 3f2b8ad; user also reports duplicate sentences. Latest candidate f344ac2 addresses both playback paths, disables high-speed grouping, protects exact-once chunk completion and emits accurate fallback clock updates. Await CI and real speaker test; no acoustic success claim."
+      "detail": "User reports less frequent but persistent 1.8x pops/hiccups after revision 19, especially following click-to-seek. Revision 20 adds bounded 24ms fade on explicit seek to prevent cutting an arbitrarily nonzero PCM sample, with regression tests for both transports and overlapping seeks. No acoustic fix claim until user verifies."
     }
   ],
   "lastBrowserEvidence": {
