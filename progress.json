@@ -423,12 +423,14 @@
         "2026-10-27 user independently confirmed pronunciation test bench at 2x has no onset pops, whereas full reader pops regardless of 0ms vs 1200ms sentence pause; preserve-pitch on/off sounded identical. Distinct pipelines identified: reader uses four abrupt 8ms gain steps and 48ms high-speed native fade vs clean bench's flat volume and 12ms native fade.",
         "Candidate e8c54ad removes the reader's gain-stepping timer, uses full desired output gain immediately and restores 12ms native PCM fade at all rates. All three CI jobs green (40618114069); physical auditory improvement still unverified.",
         "2026-10-28 user again reports audible popping at >=1.8x, while below 1.8x sounds clear. No assertion of acoustic fix. This threshold changes coalescing and highlight polling; full-reader background audio previously reused one media element while clean pronunciation bench created a new one per WAV.",
-        "3f2b8ad: new background Audio per WAV, strictly stop old before next; native/audio unit and disposable Firefox integration all green in run 40756503104. Await live candidate listening; potential coalescing path remains unproven."
+        "3f2b8ad: new background Audio per WAV, strictly stop old before next; native/audio unit and disposable Firefox integration all green in run 40756503104. Await live candidate listening; potential coalescing path remains unproven.",
+        "2026-10-28 user explicitly confirmed 3f2b8ad still pops at 1.8x+ and reports intermittent repeated sentences; real Firefox audio acceptance remains FAILED, not complete.",
+        "Candidate f344ac2 (after aa0b43a / 000c0faa): page-owned reader now also uses a fresh media element per WAV, production disables >=1.8x cross-sentence coalescing, chunk completion is idempotent, and background playback provides 0.25s source-clock updates for stall detection. Synthetic engine probes passed; CI and audible user verification are pending."
       ]
     }
   ],
   "previousPercent": 94,
-  "round": "fresh-gecko-media-element-per-wav-1",
+  "round": "page-and-extension-decoder-parity-plus-once-only-completion-1",
   "stageCompleted": {
     "Governance": 8,
     "Core port": 21,
@@ -449,7 +451,7 @@
     },
     {
       "id": "R03",
-      "detail": "User continues hearing sentence-start pops at 1.8x+ in live Firefox after several prior rate/gain/fade changes; <1.8x seems clear and pronunciation bench is clear. New revision 3f2b8ad matches bench's per-WAV fresh media lifecycle and has green QA, but audible effect still unverified. The separate >=1.8x sentence-group synthesis path is another unisolated difference."
+      "detail": "Confirmed still popping >=1.8x on previous candidate 3f2b8ad; user also reports duplicate sentences. Latest candidate f344ac2 addresses both playback paths, disables high-speed grouping, protects exact-once chunk completion and emits accurate fallback clock updates. Await CI and real speaker test; no acoustic success claim."
     }
   ],
   "lastBrowserEvidence": {
