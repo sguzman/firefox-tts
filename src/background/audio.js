@@ -12,6 +12,7 @@
   let session = null;
   let tickTimer = null;
   let pauseTimer = null;
+  let lastProgressTime = -1;
   // Match the clean pronunciation test bench: never step the output gain
   // during audible playback. The former four abrupt 8ms gain changes could
   // themselves cause clicks at >=1.8x, while muting the first 8ms of speech.
@@ -36,6 +37,14 @@
     const current = session;
     if (!current || current.paused || !audio) return;
     const time = Math.max(0, Number(audio.currentTime) || 0);
+    // Tell the reader where the real playback clock is, even between words.
+    // Without this the recovery watchdog can mistake a healthy long phrase
+    // for a stall and restart an already-spoken part of the WAV.
+    if (lastProgressTime < 0 || time < lastProgressTime ||
+        time - lastProgressTime >= 0.25) {
+      lastProgressTime = time;
+      emit(current, { type: "time", currentTime: time });
+    }
     // More frequent source-clock sampling at high playback rates.
     const lead = current.playbackRate >= 1.8 ? 0.025 : 0.015;
     let emitted = 0;
@@ -55,6 +64,7 @@
   function stopCurrent({ notify = true } = {}) {
     const previous = session;
     session = null;
+    lastProgressTime = -1;
     endTick();
     clearPause();
     if (audio) {
