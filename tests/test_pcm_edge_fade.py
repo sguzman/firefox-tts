@@ -41,32 +41,26 @@ class EdgeFadeTest(unittest.TestCase):
         self.assertEqual(out[400:402], [32767, -32768])
         self.assertTrue(all(-32768 <= v <= 32767 for v in out))
 
-    def test_high_rate_uses_longer_taper_without_changing_pcm_length(self):
-        self.assertEqual(host.edge_fade_ms_for_rate(1.7), 12)
-        self.assertEqual(host.edge_fade_ms_for_rate(1.9), 48)
-        self.assertEqual(host.edge_fade_ms_for_rate(2.5), 48)
-        for invalid in ("invalid", None, float("nan"), float("inf")):
-            self.assertEqual(host.edge_fade_ms_for_rate(invalid), 12)
+    def test_playback_rate_does_not_change_source_pcm_envelope(self):
+        for rate in (0.5, 1.0, 1.7, 1.9, 2.0, 2.5, 4.0, None,
+                     "invalid", float("nan"), float("inf")):
+            self.assertEqual(host.edge_fade_ms_for_rate(rate), 12)
 
         values = [25000] * 4000
         original = struct.pack("<" + "h" * len(values), *values)
-        slow = bytearray(original)
+        normal = bytearray(original)
         fast = bytearray(original)
-        host.taper_pcm_edges(slow, 16000, 2, 1,
-                             fade_ms=host.edge_fade_ms_for_rate(1.7))
+        host.taper_pcm_edges(normal, 16000, 2, 1,
+                             fade_ms=host.edge_fade_ms_for_rate(1.0))
         host.taper_pcm_edges(fast, 16000, 2, 1,
-                             fade_ms=host.edge_fade_ms_for_rate(1.9))
-        assert len(slow) == len(fast) == len(original)
-        a = samples(slow)
-        b = samples(fast)
-        self.assertEqual(a[0], 0)
-        self.assertEqual(b[0], 0)
-        self.assertEqual(a[-1], 0)
-        self.assertEqual(b[-1], 0)
-        self.assertEqual(a[768], 25000)
-        self.assertEqual(b[768], 25000)
-        self.assertGreater(a[160], b[160], "high-rate envelope dampens late transient")
-        self.assertEqual(a[1500], b[1500], "central speech stays untouched")
+                             fade_ms=host.edge_fade_ms_for_rate(2.0))
+        self.assertEqual(bytes(normal), bytes(fast),
+            "2x reader WAV edge must match the clean test bench, byte for byte")
+        out = samples(fast)
+        self.assertEqual(out[0], 0)
+        self.assertEqual(out[-1], 0)
+        self.assertEqual(out[192], 25000)
+        self.assertEqual(out[1500], 25000)
 
     def test_tiny_clip_and_invalid_format_are_safe(self):
         for count in (0, 1, 2, 3, 4, 8):

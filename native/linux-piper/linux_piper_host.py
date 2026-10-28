@@ -303,20 +303,12 @@ def approximate_boundaries(text: str, duration_ms: float) -> list[dict[str, Any]
 # the temporary synthesized bytearray, never the ONNX model or its settings.
 # It preserves PCM length, sample rate, channel layout and word timings.
 PCM_EDGE_FADE_MS = 12
-# Gecko's pitch-preserving high-speed renderer restarts at each sentence WAV.
-# At >=1.8x, a longer *source-side* edge taper softens the transient without
-# changing the voice's pitch or adding samples/timing drift.
-HIGH_SPEED_EDGE_FADE_MS = 48
-
-
+# The 48ms high-speed taper was added before we compared against the
+# clean pronunciation test bench. It attenuated far too much of short
+# first syllables; use the same short PCM taper for all playback rates.
+# The player handles speed; native PCM amplitude must be rate-independent.
 def edge_fade_ms_for_rate(playback_rate: Any) -> int:
-    try:
-        rate = float(playback_rate)
-    except (ValueError, TypeError, OverflowError):
-        return PCM_EDGE_FADE_MS
-    if not math.isfinite(rate):
-        return PCM_EDGE_FADE_MS
-    return HIGH_SPEED_EDGE_FADE_MS if rate >= 1.8 else PCM_EDGE_FADE_MS
+    return PCM_EDGE_FADE_MS
 
 
 def taper_pcm_edges(
@@ -421,12 +413,9 @@ def synthesize_worker(
             frame_bytes = sample_width * channels
             start_ms = (len(pcm) / frame_bytes / sample_rate) * 1000.0
             part_duration_ms = (len(part_pcm) / frame_bytes / sample_rate) * 1000.0
-            # Suppress hard joins into a configured silence, but only apply
-            # the long high-rate fade to the group onset/ending. Otherwise
-            # repeated 48ms fades themselves cause sluggish word starts.
-            edge_ms = edge_fade_ms_for_rate(playback_rate) if (
-                part_index == 0 or part_index == len(parts) - 1
-            ) else PCM_EDGE_FADE_MS
+            # Use the same short edge taper as single-utterance test bench.
+            # Do not suppress first syllables with longer high-rate fades.
+            edge_ms = PCM_EDGE_FADE_MS
             taper_pcm_edges(part_pcm, sample_rate, sample_width, channels,
                             fade_ms=edge_ms)
             for boundary in approximate_boundaries(part["text"], part_duration_ms):

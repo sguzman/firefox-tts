@@ -157,46 +157,54 @@ test("background WAV player survives autoplay denial and explicit resume", async
   assert.equal(h.ticks.size, 0);
 });
 
-test("high-speed extension audio ramps output after decoder starts and clears on Stop", async () => {
+test("2x background playback matches clean test-bench gain, with no stepped attack", async () => {
   const h = harness();
   const high = msg("high-rate", h.audioChunks);
-  high.playbackRate = 1.9;
+  high.playbackRate = 2;
   high.volume = .8;
   assert.equal((await h.player.handle(high, 12)).accepted, true);
-  assert.equal(h.audio.volume, 0, "start high-speed output muted until decoder starts");
-  assert.equal(h.ticks.size, 2, "one word clock and one short fade timer");
-  h.tickAll();
-  assert.equal(h.audio.volume, .2);
-  h.tickAll();
-  h.tickAll();
-  h.tickAll();
-  assert.equal(h.audio.volume, .8);
-  assert.equal(h.ticks.size, 1, "fade timer expires after 32 ms");
+  assert.equal(h.audio.volume, .8, "2x playback starts at normal volume; no initial mute");
+  assert.deepEqual(h.timerDurations(), [16], "only the media boundary clock runs");
 
   const second = msg("high-rate-2", h.audioChunks);
-  second.playbackRate = 1.9;
+  second.playbackRate = 2;
   second.volume = .8;
-  await h.player.handle(second, 12);
-  assert.equal(h.ticks.size, 2);
-  assert.equal(h.audio.volume, 0);
+  assert.equal((await h.player.handle(second, 12)).accepted, true);
+  assert.equal(h.audio.volume, .8, "second sentence does not repeat an audible gain staircase");
+  assert.equal(h.ticks.size, 1);
   assert.equal(h.player.stopTab(12), true);
-  assert.equal(h.audio.paused, true);
-  assert.equal(h.ticks.size, 0, "Quit clears both playback and fade timers");
-  assert.equal(h.urls.size, 0);
-
-  // Pause during the first 32ms must not cause Resume to stay silent.
-  await h.player.handle(high, 12);
-  await h.player.handle({ type:"EDGE_TTS_PIPER_OFFSCREEN_PAUSE",
-    playbackId:"high-rate" }, 12);
   assert.equal(h.ticks.size, 0);
-  const resumed = await h.player.handle({ type:"EDGE_TTS_PIPER_OFFSCREEN_RESUME",
-    playbackId:"high-rate" }, 12);
+  assert.equal(h.urls.size, 0);
+  await h.player.handle(high, 12);
+  await h.player.handle({ type: "EDGE_TTS_PIPER_OFFSCREEN_PAUSE",
+    playbackId: "high-rate" }, 12);
+  assert.equal(h.ticks.size, 0);
+  const resumed = await h.player.handle({
+    type: "EDGE_TTS_PIPER_OFFSCREEN_RESUME",
+    playbackId: "high-rate"
+  }, 12);
   assert.equal(resumed.accepted, true);
-  assert.equal(h.audio.volume, .8);
+  assert.equal(h.audio.volume, .8, "Resume remains audible");
   h.player.stopAll();
   assert.equal(h.ticks.size, 0);
 });
 
+test("2x volume changes never install a gain-stepping timer", async () => {
+  const h = harness();
+  const fast = msg("volume", h.audioChunks);
+  fast.playbackRate = 2;
+  await h.player.handle(fast, 3);
+  assert.deepEqual(h.timerDurations(), [16]);
+  const update = await h.player.handle({
+    type: "EDGE_TTS_PIPER_OFFSCREEN_VOLUME",
+    playbackId: "volume",
+    volume: .25
+  }, 3);
+  assert.equal(update.accepted, true);
+  assert.equal(h.audio.volume, .25);
+  assert.deepEqual(h.timerDurations(), [16]);
+  h.player.stopAll();
+});
 
 test("first word highlighted immediately and 2x boundary timer is 16ms", async () => {
   const h = harness();
