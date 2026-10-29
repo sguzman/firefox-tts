@@ -15,6 +15,27 @@ import io
 import importlib.util
 
 HOST = Path(__file__).resolve().parents[1] / "native/linux-piper/linux_piper_host.py"
+# A disposable ffmpeg *protocol stub*, deliberately not a sound quality test.
+# The real FFmpeg PCM filter is exercised in test_host_isolation when available.
+# This verifies Native Messaging without an OS package install in CI.
+FAKE_FFMPEG = '''
+import math
+import sys
+args = sys.argv[1:]
+if "-af" not in args:
+    raise SystemExit("Missing audio filter")
+filters = args[args.index("-af") + 1].split(",")
+rate = math.prod(float(f.split("=", 1)[1]) for f in filters)
+raw = sys.stdin.buffer.read()
+frames = len(raw) // 2
+if not frames:
+    raise SystemExit("No samples")
+output_frames = max(1, math.ceil(frames / rate))
+for i in range(output_frames):
+    index = min(frames - 1, int(i * rate))
+    sys.stdout.buffer.write(raw[index * 2: index * 2 + 2])
+'''
+
 FAKE_PIPER = '''
 import time
 class SynthesisConfig:
@@ -47,6 +68,11 @@ class FakePiperProtocolTest(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory(prefix="firefox-tts-fake-piper-")
         self.addCleanup(self.tmp.cleanup)
         root = Path(self.tmp.name)
+        fake_bin = root / "bin"
+        fake_bin.mkdir()
+        fake_ffmpeg = fake_bin / "ffmpeg"
+        fake_ffmpeg.write_text(f"#!{sys.executable}\\n" + FAKE_FFMPEG)
+        fake_ffmpeg.chmod(0o755)
         (root / "piper.py").write_text(FAKE_PIPER)
         dist = root / "piper_tts-1.8.0.dist-info"
         dist.mkdir()
@@ -59,6 +85,7 @@ class FakePiperProtocolTest(unittest.TestCase):
         self.voice_bytes = (self.voices / "en_US-amy-low.onnx").read_bytes()
         env = dict(os.environ)
         env.update(PYTHONPATH=str(root), HOME=str(root), XDG_DATA_HOME=str(root / "data"),
+                   PATH=str(fake_bin) + os.pathsep + env.get("PATH", ""),
                    EDGE_TTS_PIPER_VOICE_DIR=str(self.voices),
                    FIREFOX_TTS_VOICE_DIR=str(self.voices),
                    FIREFOX_TTS_PIPER_PYTHON=sys.executable,
