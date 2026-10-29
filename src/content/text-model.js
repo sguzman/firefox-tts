@@ -349,14 +349,19 @@
     return Boolean(parent && isElementReadable(parent, visibilityCache));
   }
 
-  function extractBlock(element, blockIndex, visibilityCache, language) {
+  function extractBlock(element, blockIndex, visibilityCache, language, claimedTextNodes = null) {
     const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
     const segments = [];
     let output = "";
     let current;
 
     while ((current = walker.nextNode())) {
-      if (!isTextNodeReadable(current, visibilityCache)) {
+      // A table cell may contain a <p>, and both td/th and p are block
+      // candidates. Consume each real text node only once across overlapping
+      // ancestors/descendants; do not deduplicate by text string, since
+      // identical values in different table cells must remain readable.
+      if (claimedTextNodes?.has(current) ||
+          !isTextNodeReadable(current, visibilityCache)) {
         continue;
       }
 
@@ -558,9 +563,12 @@
 
     const blocks = [];
     const nodeToBlock = new WeakMap();
+    const claimedTextNodes = new WeakSet();
 
     for (const candidate of candidates) {
-      const block = extractBlock(candidate, blocks.length, visibilityCache, language);
+      const block = extractBlock(
+        candidate, blocks.length, visibilityCache, language, claimedTextNodes
+      );
       if (!block || block.text.length < 2) {
         continue;
       }
@@ -568,6 +576,7 @@
       block.index = blocks.length;
       for (const segment of block.segments) {
         segment.blockIndex = block.index;
+        claimedTextNodes.add(segment.node);
         nodeToBlock.set(segment.node, block);
       }
       blocks.push(block);
