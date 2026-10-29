@@ -406,6 +406,8 @@
       this.directBoundaryFrame = null;
       this.directPlaybackRate = 1;
       this.directOutputGain = 1;
+      // Native-processed high-speed WAVs must play at 1x in *both* paths.
+      this.directMediaPlaybackRate = 1;
 
       void this.refreshLinuxPiperVoices();
       void this.refreshPronunciationConfig();
@@ -579,6 +581,9 @@
     }
 
     setPlaybackRate(rate) {
+      // Changing tempo requires a new native WAV. Never accidentally apply
+      // Firefox playbackRate to already-accelerated audio.
+      if (this.directSessionMode) return false;
       if (this.directSessionMode && this._hasLinuxPiperOffscreenPlayback()) {
         this.directPlaybackRate = Math.min(
           16,
@@ -1074,6 +1079,7 @@
         audioBase64: request.audioBase64,
         boundaries: request.boundaries,
         durationMs: Math.max(0, Number(durationMs) || 0),
+        playbackRateApplied: request.playbackRateApplied === true,
         bytes
       });
       this.linuxPiperWavCacheBytes = used + bytes;
@@ -1095,6 +1101,7 @@
         audioBase64: cached.audioBase64,
         boundaries: precise.length ? precise : cached.boundaries,
         boundariesArePrepared: precise.length > 0,
+        nativeTempoApplied: cached.playbackRateApplied === true,
         prefetch
       };
     }
@@ -1501,7 +1508,7 @@
                 0,
                 Number(this.currentOptions?.sentencePauseMs) || 0
               ),
-          playbackRate: this.directPlaybackRate,
+          playbackRate: this.directMediaPlaybackRate,
           volume: Math.min(
             1,
             Math.max(0, Number(this.directOutputGain) || 0)
@@ -1670,6 +1677,8 @@
 
       const payload = prepared.payload;
       this.linuxPiperCurrentPrepared = prepared;
+      this.directMediaPlaybackRate = prepared.nativeTempoApplied === true
+        ? 1 : this.directPlaybackRate;
       this.directActive = false;
       this.linuxPiperPlaybackIndex = prepared.chunkIndex;
       this.linuxPiperPausedInPlace = false;
@@ -1715,7 +1724,7 @@
         audio.webkitPreservesPitch = true;
       }
       audio.src = this.directObjectUrl;
-      audio.playbackRate = this.directPlaybackRate;
+      audio.playbackRate = this.directMediaPlaybackRate;
       this.directAudio = audio;
       audio.volume = Math.min(
         1,
@@ -2004,6 +2013,7 @@
 
       this.linuxPiperRequests.delete(request.requestId);
       if (this.linuxPiperRequest === request) this.linuxPiperRequest = null;
+      request.playbackRateApplied = event.playbackRateApplied === true;
       this._storeLinuxPiperCachedWav(request, event.durationMs);
 
       // Grouped WAVs contain real PCM pauses. The native worker computes
@@ -2022,6 +2032,7 @@
             ? improvedBoundaries
             : request.boundaries,
         boundariesArePrepared: improvedBoundaries.length > 0,
+        nativeTempoApplied: event.playbackRateApplied === true,
         prefetch: request.prefetch
       };
       this.linuxPiperPrepared.set(request.chunkIndex, prepared);
