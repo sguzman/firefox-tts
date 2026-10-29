@@ -123,6 +123,27 @@ test("native-accelerated 1.8x WAV always plays at 1x in the Firefox tab", async 
   engine.directAudio.pause();
 });
 
+test("outdated native host cannot silently feed 1.8x WAV to Gecko", () => {
+  const engine = Object.create(LinuxPiperSpeechEngine.prototype);
+  engine.generation = 31;
+  engine.currentChunkIndex = 0;
+  engine.directPlaybackRate = 1.8;
+  let failed = "";
+  engine._failLinuxPiper = message => { failed = message; };
+  const before = elements.length;
+  engine._playLinuxPiperPrepared(31, {
+    generation: 31, chunkIndex: 0, nativeTempoApplied: false,
+    payload: { segments: [{ text: "Word" }] }, audio: [new Uint8Array([0, 0])]
+  });
+  assert.match(failed, /Re-run: bash native\/linux-piper\/install-native-host\.sh/);
+  assert.equal(elements.length, before, "outdated high-rate audio must not play");
+});
+
+test("speed changes require native resynthesis, not a second Gecko time-stretch", () => {
+  const engine = Object.create(LinuxPiperSpeechEngine.prototype);
+  engine.directSessionMode = true;
+  assert.equal(engine.setPlaybackRate(2), false);
+});
 test("click-to-seek tapers a playing page WAV to silence before hard cancellation", async () => {
   const engine = Object.create(LinuxPiperSpeechEngine.prototype);
   const audio = new FakeAudio();
