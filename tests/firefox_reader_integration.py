@@ -178,7 +178,18 @@ def qa_package(release: Path, destination: Path) -> None:
             turn.setAttribute("data-testid", "conversation-turn-qa");
             turn.setAttribute("data-turn", "assistant");
             turn.innerHTML = [
-              '<div data-message-author-role="assistant"><p>Synthetic assistant reply.</p></div>',
+              '<div data-message-author-role="assistant">',
+              '<p>Synthetic assistant reply.</p>',
+              '<table><thead><tr>',
+              '<th><p>Measurement</p></th><th><p>First sample</p></th>',
+              '<th>10 seconds later</th>',
+              '</tr></thead><tbody>',
+              '<tr><td><p>CPU time</p></td><td><p>14 sec</p></td>',
+              '<td>15 sec</td></tr>',
+              '<tr><td><p>Data read by process</p></td>',
+              '<td><p>93.73 MB</p></td><td>94.71 MB</td></tr>',
+              '</tbody></table>',
+              '</div>',
               '<div class="ProseMirror" contenteditable="true">',
               '<div>Unique synthetic Writing Block prose.</div>',
               '<textarea>Private composer text must not be read.</textarea>',
@@ -416,6 +427,23 @@ def main() -> None:
                 all_prose = " ".join(writing["blocks"])
                 assert "Unique synthetic Writing Block prose." in all_prose, writing
                 assert "Synthetic assistant reply." in all_prose, writing
+                # ChatGPT Markdown tables commonly place <p> inside <td>/<th>.
+                # The cell and paragraph are both semantic candidates, but
+                # the underlying text must be read exactly once.
+                table_cells = [
+                    "Measurement", "First sample", "10 seconds later",
+                    "CPU time", "14 sec", "15 sec",
+                    "Data read by process", "93.73 MB", "94.71 MB"
+                ]
+                for cell_text in table_cells:
+                    assert writing["blocks"].count(cell_text) == 1, (
+                        "Table cell duplicated or omitted", cell_text, writing
+                    )
+                indices = [writing["blocks"].index(value) for value in table_cells]
+                assert indices == sorted(indices), (
+                    "Table reading order changed", writing
+                )
+                print("PASS: ChatGPT nested table cells read once in row order")
                 assert "Private composer text must not be read." not in all_prose, writing
                 assert "Hidden status announcement." not in all_prose, writing
                 print("PASS: Real Firefox extracts ChatGPT assistant Writing Blocks but excludes composer/status")
