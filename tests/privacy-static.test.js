@@ -44,9 +44,15 @@ test("CPU-local native helper has no HTTP clients or bootstrap packages", () => 
   assert.match(host, /use_cuda=False/);
   assert.match(host, /FIREFOX_TTS_DATA_HOME/);
   for (const forbidden of [/import requests\b/, /import urllib\b/, /import http\b/,
-                           /import socket\b/, /subprocess\.run\(/, /os\.system\(/]) {
+                           /import socket\b/, /os\.system\(/]) {
     assert.ok(!forbidden.test(host), `native helper contains prohibited action ${forbidden}`);
   }
+  // Offline FFmpeg atempo is the one permitted local subprocess.
+  // It is argv-based (no shell), needs no network, and changes no voice models.
+  assert.equal((host.match(/subprocess\.run\(/g) || []).length, 1);
+  assert.match(host, /ffmpeg = shutil\.which\("ffmpeg"\)/);
+  assert.match(host, /command = \[\s*ffmpeg,/);
+  assert.ok(!/shell\s*=\s*True/.test(host));
   const manifestJSON = fs.readFileSync(path.join(ROOT, "manifest.json"), "utf8");
   assert.ok(!manifestJSON.includes("https://"), "No network host permissions or servers");
 });
