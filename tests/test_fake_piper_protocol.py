@@ -160,11 +160,14 @@ class FakePiperProtocolTest(unittest.TestCase):
             if event["type"] == "error":
                 self.fail(event["message"])
             if event["type"] == "synthesisEnd":
+                self.assertTrue(event["playbackRateApplied"])
+                self.assertAlmostEqual(event["durationMs"], 800/1.9, delta=40)
                 break
         with wave.open(io.BytesIO(pcm_wav), "rb") as audio:
             self.assertEqual(audio.getframerate(), 16000)
             raw = audio.readframes(audio.getnframes())
-        self.assertEqual(len(raw), 4 * 3200 * 2)
+        self.assertLess(len(raw), 4 * 3200 * 2)
+        self.assertGreater(len(raw), 4 * 3200 * 2 / 2.2)
         self.assertEqual(struct.unpack_from("<h", raw, 0)[0], 0)
         self.assertEqual(struct.unpack_from("<h", raw, len(raw)-2)[0], 0)
         self.assertEqual((self.voices / "en_US-amy-low.onnx").read_bytes(), self.voice_bytes)
@@ -188,17 +191,38 @@ class FakePiperProtocolTest(unittest.TestCase):
             elif msg["type"] == "error":
                 self.fail(msg["message"])
             elif msg["type"] == "synthesisEnd":
-                self.assertAlmostEqual(msg["durationMs"], 2200, delta=1)
+                self.assertTrue(msg["playbackRateApplied"])
+                self.assertAlmostEqual(msg["durationMs"], 1100, delta=80)
                 break
         with wave.open(io.BytesIO(audio), "rb") as wav:
-            self.assertEqual(wav.getnframes(), 16000 * 22 // 10)
+            self.assertAlmostEqual(wav.getnframes(), 16000 * 11 // 10, delta=1280)
             pcm = wav.readframes(wav.getnframes())
-        # Fake voice synthesizes four 3200-frame chunks per sentence (800ms),
-        # with exactly 9600 zero frames (600ms of source = 300ms at 2x).
-        self.assertEqual(pcm[12800*2 : (12800+9600)*2], b"\x00" * (9600*2))
+        # Native grouped offsets are now wall-clock after FFmpeg tempo;
+        # Firefox plays the completed WAV at exactly 1x.
         self.assertEqual([x["charIndex"] for x in boundaries], [0, 7])
-        self.assertAlmostEqual(boundaries[1]["audioPositionMs"], 1400, delta=1)
+        self.assertAlmostEqual(boundaries[1]["audioPositionMs"], 700, delta=1)
+        self.assertEqual(struct.unpack_from("<h", pcm, 0)[0], 0)
+        self.assertEqual(struct.unpack_from("<h", pcm, len(pcm)-2)[0], 0)
         self.assertEqual((self.voices / "en_US-amy-low.onnx").read_bytes(), self.voice_bytes)
+
+    def test_normal_rate_keeps_native_wav_and_legacy_playback_clock(self):
+        self.handshake()
+        self.send({"type": "synthesize", "requestId": "normal",
+                   "voiceId": "en_US-amy-low", "text": "Normal speed",
+                   "playbackRate": 1.7})
+        audio_bytes = bytearray()
+        while True:
+            event = self.read(time.monotonic() + 7)
+            if event["type"] == "audioChunk":
+                audio_bytes.extend(base64.b64decode(event["data"]))
+            if event["type"] == "error":
+                self.fail(event["message"])
+            if event["type"] == "synthesisEnd":
+                self.assertFalse(event["playbackRateApplied"])
+                self.assertAlmostEqual(event["durationMs"], 800, delta=1)
+                break
+        with wave.open(io.BytesIO(audio_bytes), "rb") as wav:
+            self.assertEqual(wav.getnframes(), 4 * 3200)
 
     def test_explicit_cpu_self_check_uses_existing_fake_model_read_only(self):
         script = HOST.parent / "self-test-cpu.sh"
