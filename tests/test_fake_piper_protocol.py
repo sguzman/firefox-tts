@@ -160,29 +160,14 @@ class FakePiperProtocolTest(unittest.TestCase):
             if event["type"] == "error":
                 self.fail(event["message"])
             if event["type"] == "synthesisEnd":
-                self.assertAlmostEqual(event["startupPrerollMs"], 96, delta=1)
-                self.assertAlmostEqual(event["durationMs"], 896, delta=1)
                 break
         with wave.open(io.BytesIO(pcm_wav), "rb") as audio:
             self.assertEqual(audio.getframerate(), 16000)
             raw = audio.readframes(audio.getnframes())
-        preroll = round(16000 * 0.096) * 2
-        self.assertEqual(len(raw), (4 * 3200 * 2) + preroll)
-        self.assertEqual(raw[:preroll], b"\x00" * preroll,
-                         "high-rate WAV starts with real silence for Gecko")
+        self.assertEqual(len(raw), 4 * 3200 * 2)
         self.assertEqual(struct.unpack_from("<h", raw, 0)[0], 0)
         self.assertEqual(struct.unpack_from("<h", raw, len(raw)-2)[0], 0)
         self.assertEqual((self.voices / "en_US-amy-low.onnx").read_bytes(), self.voice_bytes)
-
-    def test_startup_preroll_only_at_high_rates(self):
-        spec = importlib.util.spec_from_file_location("firefox_tts_host_preroll", HOST)
-        host = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(host)
-        self.assertEqual(host.startup_preroll_ms_for_rate(1.7), 0)
-        self.assertEqual(host.startup_preroll_ms_for_rate(1.8), 96)
-        self.assertEqual(host.startup_preroll_ms_for_rate(2.0), 96)
-        self.assertEqual(host.startup_preroll_ms_for_rate(float("nan")), 0)
-        self.assertEqual(host.startup_preroll_ms_for_rate("garbage"), 0)
 
     def test_high_rate_grouped_sentence_wav_has_real_pcm_pause_and_native_offsets(self):
         self.handshake()
@@ -203,22 +188,16 @@ class FakePiperProtocolTest(unittest.TestCase):
             elif msg["type"] == "error":
                 self.fail(msg["message"])
             elif msg["type"] == "synthesisEnd":
-                self.assertAlmostEqual(msg["startupPrerollMs"], 96, delta=1)
-                self.assertAlmostEqual(msg["durationMs"], 2296, delta=1)
+                self.assertAlmostEqual(msg["durationMs"], 2200, delta=1)
                 break
         with wave.open(io.BytesIO(audio), "rb") as wav:
-            self.assertEqual(wav.getnframes(), 16000 * 22 // 10 + 1536)
+            self.assertEqual(wav.getnframes(), 16000 * 22 // 10)
             pcm = wav.readframes(wav.getnframes())
         # Fake voice synthesizes four 3200-frame chunks per sentence (800ms),
         # with exactly 9600 zero frames (600ms of source = 300ms at 2x).
-        self.assertEqual(pcm[:1536*2], b"\x00" * (1536*2))
-        self.assertEqual(
-            pcm[(1536+12800)*2 : (1536+12800+9600)*2],
-            b"\x00" * (9600*2)
-        )
+        self.assertEqual(pcm[12800*2 : (12800+9600)*2], b"\x00" * (9600*2))
         self.assertEqual([x["charIndex"] for x in boundaries], [0, 7])
-        self.assertAlmostEqual(boundaries[0]["audioPositionMs"], 96, delta=1)
-        self.assertAlmostEqual(boundaries[1]["audioPositionMs"], 1496, delta=1)
+        self.assertAlmostEqual(boundaries[1]["audioPositionMs"], 1400, delta=1)
         self.assertEqual((self.voices / "en_US-amy-low.onnx").read_bytes(), self.voice_bytes)
 
     def test_explicit_cpu_self_check_uses_existing_fake_model_read_only(self):
