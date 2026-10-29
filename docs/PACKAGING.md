@@ -11,7 +11,7 @@ python3 tools/build_xpi.py --output /tmp/firefox-tts-unsigned.xpi
 ```
 
 The builder prints the output path, number of files and SHA-256 content hash.
-Only `LICENSE`, `manifest.json` and `src/` HTML/CSS/JS ship. Native host
+Only `LICENSE`, `manifest.json` and `src/` HTML/CSS/JS/PNG/SVG ship. Native host
 installers, voice models, tests, private configs, screenshots and CI metadata
 never enter the XPI. Entry ordering, permissions and ZIP timestamps are fixed
 for byte-identical output from the same checkout and Python/ZIP environment.
