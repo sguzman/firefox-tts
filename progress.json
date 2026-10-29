@@ -7,7 +7,7 @@
     "date": "2026-10-27",
     "note": "Repository initially contained only LICENSE and .gitignore"
   },
-  "asOf": "2026-10-28",
+  "asOf": "2026-10-29",
   "completedWeight": 94,
   "totalWeight": 100,
   "percent": 94,
@@ -435,12 +435,13 @@
         "2026-10-28 user reports revision 22 caused more frequent audible high-rate pops; 96ms startup pre-roll FAILED real listening and is fully reverted in revision 23. Previously implemented deterministic WAV caching and click-fade are retained; high-rate audio still NOT ACCEPTED.",
         "2026-10-28 comparison with pinned sguzman/edge-tts development/linux-piper-v1 confirms both normal reader paths use HTMLAudioElement playbackRate and preservesPitch; Chromium/Gecko differ in media processing. Next candidate should avoid an endless series of speculative Gecko media ramps: first isolate or bypass browser time stretch, with actual acoustic verification before promotion.",
         "2026-10-28 revision 23 user audio acceptance FAILED: worse after r22 rollback target and intermittent 1.8x pop remains. Do not confuse structural tests with speaker acceptance.",
-        "Revision 24 candidate replaces browser 1.8x time stretching with native CPU FFmpeg atempo in Piper worker, uses playbackRateApplied flag, emits accelerated WAV with post-FFmpeg PCM fade, retains correct timing in native word events and cache, passes 1x to page and extension fallback media. Rejects older native hosts instead of silently playing at Gecko 1.8x. Native installer reports FFmpeg dependency. Focused V8 production-path exercises passed 4 checks; FFmpeg CLI tested on real PCM samples, and new fake-host/integration/JS regression tests committed. Full repository CI and real Firefox acoustic acceptance unverified; DO NOT mark complete."
+        "Revision 24 candidate replaces browser 1.8x time stretching with native CPU FFmpeg atempo in Piper worker, uses playbackRateApplied flag, emits accelerated WAV with post-FFmpeg PCM fade, retains correct timing in native word events and cache, passes 1x to page and extension fallback media. Rejects older native hosts instead of silently playing at Gecko 1.8x. Native installer reports FFmpeg dependency. Focused V8 production-path exercises passed 4 checks; FFmpeg CLI tested on real PCM samples, and new fake-host/integration/JS regression tests committed. Full repository CI and real Firefox acoustic acceptance unverified; DO NOT mark complete.",
+        "2026-10-29 USER-VERIFIED ACOUSTIC PASS: after installing revision 24 (git fast-forward b7e36c2..0956741, native host reinstall detecting CPU FFmpeg, browser reload), user reports previously intermittent pops and crunch are completely gone; speech is now smooth. This directly closes the high-rate audible-pop gate at the tested setup. Exact Gecko internal defect not isolated. Broader R03 release acceptance (quit/settings/no focus theft) has not all been reconfirmed in this report."
       ]
     }
   ],
   "previousPercent": 94,
-  "round": "cpu-offline-tempo-firefox-1x-r24",
+  "round": "r24-audio-acoustic-pass-user-confirmed",
   "stageCompleted": {
     "Governance": 8,
     "Core port": 21,
@@ -461,7 +462,7 @@
     },
     {
       "id": "R03",
-      "detail": "Live Firefox listening gate still failed as of revision 23. Revision 24 candidate preprocesses high speed Piper PCM via native FFmpeg atempo; browser plays 1x, host supports explicit rate metadata, stale host rejected. Runtime synthetic playback-path checks passed but no actual speaker acceptance/CI verification. Requires git pull, ffmpeg installed, native host reinstall, reload extension."
+      "detail": "HIGH-RATE ACOUSTIC GATE PASSED 2026-10-29: user reports revision 24 CPU FFmpeg offline atempo + Firefox 1x playback eliminates audible pops/crunch. R03 remains open solely pending any unverified broader live acceptance checks (settings, quit/focus behavior) and updated CI evidence; do not describe the audio as failed."
     }
   ],
   "lastBrowserEvidence": {
