@@ -71,7 +71,7 @@ class FakePiperProtocolTest(unittest.TestCase):
         fake_bin = root / "bin"
         fake_bin.mkdir()
         fake_ffmpeg = fake_bin / "ffmpeg"
-        fake_ffmpeg.write_text(f"#!{sys.executable}\\n" + FAKE_FFMPEG)
+        fake_ffmpeg.write_text(f"#!{sys.executable}\n" + FAKE_FFMPEG)
         fake_ffmpeg.chmod(0o755)
         (root / "piper.py").write_text(FAKE_PIPER)
         dist = root / "piper_tts-1.8.0.dist-info"
