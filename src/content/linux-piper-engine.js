@@ -581,21 +581,10 @@
     }
 
     setPlaybackRate(rate) {
-      // Changing tempo requires a new native WAV. Never accidentally apply
-      // Firefox playbackRate to already-accelerated audio.
+      // The native WAV contains the requested high-rate tempo already.
+      // A rate change is handled by Reader.changeRate re-synthesizing at the
+      // new rate, never by applying a second Gecko playbackRate adjustment.
       if (this.directSessionMode) return false;
-      if (this.directSessionMode && this._hasLinuxPiperOffscreenPlayback()) {
-        this.directPlaybackRate = Math.min(
-          16,
-          Math.max(0.25, Number(rate) || 1)
-        );
-        void root.chrome?.runtime?.sendMessage?.({
-          type: "EDGE_TTS_PIPER_OFFSCREEN_RATE",
-          playbackId: this.linuxPiperOffscreenPlayback.playbackId,
-          playbackRate: this.directPlaybackRate
-        }).catch?.(() => {});
-        return true;
-      }
       return super.setPlaybackRate?.(rate) ?? false;
     }
 
