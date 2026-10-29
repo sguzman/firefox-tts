@@ -1,12 +1,16 @@
+<div align="center">
+  <img src="src/icons/fox-tts-128.svg" width="128" height="128" alt="Firefox TTS fox speaking with sound waves">
+</div>
+
 # 🦊 Firefox TTS
 
 Firefox Developer Edition-first read-aloud WebExtension, porting the Linux **offline CPU-only Piper** capability and reading UI from [Edge Natural TTS](https://github.com/sguzman/edge-tts). This is a **development build; final real-browser user acceptance is still pending**.
 
 The project is independent of the Edge extension and does **not** depend on Edge's online speech protocol, Windows voices, `chrome.tts`, or Chromium offscreen documents. The existing Edge installation, installed voices, pronunciation files and real Firefox profile must remain untouched.
 
-## Status — October 27, 2026
+## Status — October 29, 2026
 
-**94% (+5 percentage points since 89%)**. The pinned source import, Gecko background code, disposable native host integration tests, and governance tasks, plus the one-time [firefox-scripts index cross-link](https://github.com/sguzman/firefox-scripts/commit/e11fac830231b6fcdfb9406ebca1cb468cfbbb5e) have been completed. **The Firefox-specific reader, background bridge and synthetic audio path have passed disposable real-Firefox tests. A real installed CPU-only Piper 1.8.0 model also passed its local synthesis self-test.** Audible Firefox playback on the user's machine and the live authenticated Writing Block are still unverified.
+**94% evidence-backed roadmap completion.** User-confirmed Firefox Developer Edition playback is now smooth at 1.8× after moving high-speed processing into local CPU-based FFmpeg (`atempo`), with Firefox playing the processed WAVs at 1×. The existing Piper 1.8.0 voice models and independent Edge extension are unchanged. Final authenticated ChatGPT Writing Block and general release acceptance checks remain open.
 
 - [📍 Detailed weighted roadmap](docs/ROADMAP.md)
 - [📊 Machine-readable progress ledger](progress.json)
