@@ -2,7 +2,7 @@
 (() => {
   "use strict";
   // These names are the pinned upstream IPC contract, not a Chromium dependency.
-  const REVISION = 23;
+  const REVISION = 24;
   const READER_FILES = Object.freeze([
     "src/content/namespace.js",
     "src/pronunciation/defaults.js",
