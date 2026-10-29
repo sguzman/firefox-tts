@@ -303,6 +303,17 @@ def approximate_boundaries(text: str, duration_ms: float) -> list[dict[str, Any]
 # the temporary synthesized bytearray, never the ONNX model or its settings.
 # It preserves PCM length, sample rate, channel layout and word timings.
 PCM_EDGE_FADE_MS = 12
+# Give Gecko's pitch-preserving time stretcher a real silence analysis window.
+# 96 source-ms at 1.8x costs about 53ms wall time, without cutting speech.
+PIPER_STARTUP_PREROLL_MS = 96
+
+
+def startup_preroll_ms_for_rate(playback_rate: Any) -> int:
+    try:
+        rate = float(playback_rate)
+    except (TypeError, ValueError, OverflowError):
+        return 0
+    return PIPER_STARTUP_PREROLL_MS if math.isfinite(rate) and rate >= 1.8 else 0
 # The 48ms high-speed taper was added before we compared against the
 # clean pronunciation test bench. It attenuated far too much of short
 # first syllables; use the same short PCM taper for all playback rates.
@@ -387,6 +398,8 @@ def synthesize_worker(
         sample_width: int | None = None
         channels: int | None = None
         boundaries: list[dict[str, Any]] = []
+        startup_preroll_ms = startup_preroll_ms_for_rate(playback_rate)
+        actual_startup_preroll_ms = 0.0
         parts = text_parts or [{"text": text, "charStart": 0, "pauseAfterMs": 0}]
 
         for part_index, part in enumerate(parts):
@@ -411,6 +424,10 @@ def synthesize_worker(
             if not part_pcm or not sample_rate or not sample_width or not channels:
                 raise RuntimeError("Piper produced no audio")
             frame_bytes = sample_width * channels
+            if part_index == 0 and startup_preroll_ms:
+                preroll_frames = round(sample_rate * startup_preroll_ms / 1000)
+                pcm.extend(b"\x00" * (preroll_frames * frame_bytes))
+                actual_startup_preroll_ms = preroll_frames * 1000.0 / sample_rate
             start_ms = (len(pcm) / frame_bytes / sample_rate) * 1000.0
             part_duration_ms = (len(part_pcm) / frame_bytes / sample_rate) * 1000.0
             # Use the same short edge taper as single-utterance test bench.
@@ -480,6 +497,7 @@ def synthesize_worker(
                 "type": "synthesisEnd",
                 "requestId": request_id,
                 "durationMs": duration_ms,
+                "startupPrerollMs": actual_startup_preroll_ms,
                 "timing": "approximate",
             }
         )
