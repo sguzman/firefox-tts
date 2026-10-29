@@ -9,6 +9,8 @@ import json
 import math
 import os
 import re
+import shutil
+import subprocess
 import struct
 import sys
 import threading
@@ -340,6 +342,56 @@ def taper_pcm_edges(
                 struct.pack_into("<h", pcm, sample_offset, round(sample * gain))
 
 
+# Gecko HTMLAudioElement's high-rate time-stretch occasionally pops even when
+# given the same valid Piper WAV repeatedly. Apply high-rate tempo to raw PCM
+# *before* sending the WAV to Firefox, then let both browser players use 1.0x.
+# No online service, model modification, generated files or GPU dependency.
+NATIVE_TEMPO_THRESHOLD = 1.8
+
+
+def offline_tempo_pcm(
+    pcm: bytearray, sample_rate: int, sample_width: int,
+    channels: int, playback_rate: float
+) -> bytearray:
+    if sample_width != 2 or sample_rate <= 0 or channels <= 0:
+        raise RuntimeError("Offline Piper tempo requires 16-bit PCM audio")
+    rate = float(playback_rate)
+    if not math.isfinite(rate) or not NATIVE_TEMPO_THRESHOLD <= rate <= 16.0:
+        raise ValueError("Offline Piper tempo rate must be between 1.8 and 16")
+    ffmpeg = shutil.which("ffmpeg")
+    if not ffmpeg:
+        raise RuntimeError(
+            "High-speed Piper playback requires FFmpeg for offline tempo. "
+            "On Arch/EndeavourOS install it with: sudo pacman -S ffmpeg"
+        )
+    stages = []
+    remainder = rate
+    while remainder > 2.0:
+        stages.append("atempo=2")
+        remainder /= 2.0
+    stages.append(f"atempo={remainder:.9g}")
+    command = [
+        ffmpeg, "-hide_banner", "-nostdin", "-loglevel", "error",
+        "-f", "s16le", "-ar", str(sample_rate), "-ac", str(channels),
+        "-i", "pipe:0", "-af", ",".join(stages),
+        "-f", "s16le", "-acodec", "pcm_s16le", "pipe:1",
+    ]
+    try:
+        result = subprocess.run(
+            command, input=bytes(pcm), capture_output=True,
+            timeout=12, check=False
+        )
+    except subprocess.TimeoutExpired as error:
+        raise RuntimeError("FFmpeg offline Piper tempo timed out") from error
+    if result.returncode != 0:
+        detail = result.stderr.decode("utf-8", errors="replace")[-400:]
+        raise RuntimeError(f"FFmpeg offline Piper tempo failed: {detail}")
+    frame_bytes = sample_width * channels
+    if len(result.stdout) < frame_bytes or len(result.stdout) % frame_bytes:
+        raise RuntimeError("FFmpeg returned invalid or empty tempo-adjusted PCM")
+    return bytearray(result.stdout)
+
+
 def validate_text_parts(raw_parts: Any, text: str) -> list[dict[str, Any]] | None:
     """Accept only bounded, source-offset-consistent high-speed sentence groups."""
     if raw_parts is None:
@@ -431,6 +483,23 @@ def synthesize_worker(
                 silence_frames = round(sample_rate * part["pauseAfterMs"] * effective_rate / 1000)
                 pcm.extend(b"\x00" * (silence_frames * frame_bytes))
 
+        # Do not ask Gecko to time-stretch this high-rate WAV again.
+        # Keep the native word timestamps in the same post-tempo media clock.
+        offline_rate = float(playback_rate)
+        tempo_applied = math.isfinite(offline_rate) and offline_rate >= NATIVE_TEMPO_THRESHOLD
+        if tempo_applied:
+            pcm = offline_tempo_pcm(
+                pcm, sample_rate, sample_width, channels, offline_rate
+            )
+            # The time stretcher can end at a nonzero PCM sample.
+            taper_pcm_edges(
+                pcm, sample_rate, sample_width, channels,
+                fade_ms=PCM_EDGE_FADE_MS
+            )
+            for boundary in boundaries:
+                boundary["audioPositionMs"] /= offline_rate
+                boundary["durationMs"] /= offline_rate
+
         frames = len(pcm) / (sample_width * channels)
         duration_ms = (frames / sample_rate) * 1000.0
 
@@ -480,6 +549,7 @@ def synthesize_worker(
                 "type": "synthesisEnd",
                 "requestId": request_id,
                 "durationMs": duration_ms,
+                "playbackRateApplied": tempo_applied,
                 "timing": "approximate",
             }
         )
