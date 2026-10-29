@@ -21,7 +21,7 @@ from pathlib import Path
 from threading import Thread
 
 import firefox_headless_smoke as base
-from test_fake_piper_protocol import FAKE_PIPER
+from test_fake_piper_protocol import FAKE_PIPER, FAKE_FFMPEG
 
 ROOT = Path(__file__).resolve().parents[1]
 ELEMENT = "element-6066-11e4-a52e-4f735466cecf"
@@ -309,6 +309,13 @@ def install_fake_native_host(root: Path) -> None:
     """Register a fake Piper on isolated HOME; never run a real model."""
     short_audio = (os.environ.get("FIREFOX_TTS_QA_AUTOPLAY") == "1" or
                    os.environ.get("FIREFOX_TTS_QA_FAST") == "1")
+    # Real Firefox QA uses the same disposable tempo-protocol stub as the
+    # native fake-Piper tests. This is NOT part of any shipped extension.
+    fake_bin = root / "bin"
+    fake_bin.mkdir()
+    fake_ffmpeg = fake_bin / "ffmpeg"
+    fake_ffmpeg.write_text(f"#!{sys.executable}\n" + FAKE_FFMPEG)
+    fake_ffmpeg.chmod(0o755)
     (root / "piper.py").write_text(
         FAKE_PIPER.replace('count = 25 if "cancel" in text else 4',
                            'count = 25 if "cancel" in text else ' +
@@ -341,7 +348,8 @@ def install_fake_native_host(root: Path) -> None:
     os.environ.update({
         "PYTHONPATH": str(root),
         "EDGE_TTS_PIPER_VOICE_DIR": str(voices),
-        "FIREFOX_TTS_DATA_HOME": str(root / "firefox-data")
+        "FIREFOX_TTS_DATA_HOME": str(root / "firefox-data"),
+        "PATH": str(fake_bin) + os.pathsep + os.environ.get("PATH", "")
     })
 
 
