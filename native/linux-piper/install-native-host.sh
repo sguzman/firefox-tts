@@ -89,6 +89,11 @@ os.chmod(temp, 0o600)
 os.replace(temp, path)
 PY
 echo "Firefox TTS native host installed separately from Edge."
+if command -v ffmpeg >/dev/null 2>&1; then
+  echo "  High-speed speech: offline FFmpeg tempo available (Firefox media stays at 1x)."
+else
+  echo "  WARNING: 1.8x+ speed requires FFmpeg. On Arch/EndeavourOS: sudo pacman -S ffmpeg" >&2
+fi
 echo "  Host manifest: $MANIFEST"
 echo "  Voices (read-only): $VOICE_DIR"
 echo "  Firefox data: $APP_HOME"
