@@ -65,6 +65,7 @@ test("2x page-owned reader creates a new decoder for each WAV, releasing old med
     return {
       generation: 5,
       chunkIndex: index,
+      nativeTempoApplied: true,
       payload: { segments: [{ text: "Word.", blockIndex: 0, segmentIndex: index }] },
       audio: [new Uint8Array([0, 0])],
       boundaries: [],
@@ -85,7 +86,8 @@ test("2x page-owned reader creates a new decoder for each WAV, releasing old med
     assert.equal(first.paused, true, "previous WAV must be retired");
     assert.equal(first.src, "", "previous decoder source must be removed");
     assert.equal(second.paused, false);
-    assert.equal(second.playbackRate, 2);
+    assert.equal(second.playbackRate, 1,
+      "2x content must already be accelerated by CPU FFmpeg");
     assert.equal(elements.length, 2);
   } finally {
     engine.directAudio?.pause();
