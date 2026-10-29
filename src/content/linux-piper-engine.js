@@ -1047,7 +1047,7 @@
       ]);
     }
 
-    _storeLinuxPiperCachedWav(request, durationMs) {
+    _storeLinuxPiperCachedWav(request, durationMs, startupPrerollMs = 0) {
       const key = this._linuxPiperWavCacheKey(request?.payload);
       if (!key || !request?.audio?.length || !request?.audioBase64?.length) return;
       const bytes = request.audio.reduce((sum, chunk) => sum + chunk.byteLength, 0)
@@ -1074,6 +1074,7 @@
         audioBase64: request.audioBase64,
         boundaries: request.boundaries,
         durationMs: Math.max(0, Number(durationMs) || 0),
+        startupPrerollMs: Math.max(0, Number(startupPrerollMs) || 0),
         bytes
       });
       this.linuxPiperWavCacheBytes = used + bytes;
@@ -1087,8 +1088,14 @@
       const cached = cache.get(key);
       cache.delete(key);
       cache.set(key, cached); // Bounded least-recently-used eviction order.
-      const precise = payload?.parts?.length
-        ? [] : approximatePiperBoundaries(payload, cached.durationMs);
+      const prerollMs = Math.max(0, Number(cached.startupPrerollMs) || 0);
+      const precise = payload?.parts?.length ? [] :
+        approximatePiperBoundaries(
+          payload, Math.max(0, cached.durationMs - prerollMs)
+        ).map(boundary => ({
+          ...boundary,
+          offsetSeconds: boundary.offsetSeconds + prerollMs / 1000
+        }));
       return {
         generation, chunkIndex, payload,
         audio: cached.audio,
@@ -2004,12 +2011,20 @@
 
       this.linuxPiperRequests.delete(request.requestId);
       if (this.linuxPiperRequest === request) this.linuxPiperRequest = null;
-      this._storeLinuxPiperCachedWav(request, event.durationMs);
+      this._storeLinuxPiperCachedWav(
+        request, event.durationMs, event.startupPrerollMs
+      );
 
       // Grouped WAVs contain real PCM pauses. The native worker computes
       // per-part word offsets using actual sub-sentence frame lengths.
-      const improvedBoundaries = request.payload?.parts?.length
-        ? [] : approximatePiperBoundaries(request.payload, event.durationMs);
+      const prerollMs = Math.max(0, Number(event.startupPrerollMs) || 0);
+      const improvedBoundaries = request.payload?.parts?.length ? [] :
+        approximatePiperBoundaries(
+          request.payload, Math.max(0, (Number(event.durationMs) || 0) - prerollMs)
+        ).map(boundary => ({
+          ...boundary,
+          offsetSeconds: boundary.offsetSeconds + prerollMs / 1000
+        }));
 
       const prepared = {
         generation: request.generation,
