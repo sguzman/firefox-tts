@@ -1664,7 +1664,25 @@
         return;
       }
 
+      // Fail visibly if the user updated the extension but not its copied
+      // native host. Otherwise 1.8x silently takes the old Gecko stretch path.
+      if (this.directPlaybackRate >= 1.8 && prepared.nativeTempoApplied !== true) {
+        this._failLinuxPiper(
+          "High-speed WAV was not processed by the native FFmpeg tempo engine. " +
+          "Re-run: bash native/linux-piper/install-native-host.sh"
+        );
+        return;
+      }
+
       const payload = prepared.payload;
+      if (prepared.chunkIndex === 0) {
+        console.info("Firefox TTS playback backend", {
+          requestedRate: this.directPlaybackRate,
+          mediaPlaybackRate: prepared.nativeTempoApplied === true
+            ? 1 : this.directPlaybackRate,
+          nativeTempoApplied: prepared.nativeTempoApplied === true
+        });
+      }
       this.linuxPiperCurrentPrepared = prepared;
       this.directMediaPlaybackRate = prepared.nativeTempoApplied === true
         ? 1 : this.directPlaybackRate;
