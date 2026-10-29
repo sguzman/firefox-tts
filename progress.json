@@ -431,12 +431,14 @@
         "2026-10-28 user reports revision 20 still pops/hiccups most of the time at 1.8x; repeatedly clicking the same word reproduces it. User listening gate remains FAILED.",
         "Revision 21 candidate reuses byte-identical, bounded in-memory WAV data for matching voice/text/rate/pronunciation revision; unlike pronunciation test bench, prior reader requested fresh stochastic Piper synthesis every click. Pure JS production-path cache exercises and syntax checks passed, but actual real Piper audio and Firefox speaker playback have not been verified. A variable pop on identical cached WAVs implicates playback; a reproducible bad WAV implicates source synthesis.",
         "2026-10-28 user reports revision 21 significantly reduces but does not eliminate intermittent 1.8x same-word playback pops. Acceptance is still FAILED.",
-        "Revision 22 candidate: native Python inserts 96 ms of actual zero PCM before speech for >=1.8x Gecko pitch processor startup, and reports startupPrerollMs. Reader subtracts preroll from speech-duration approximations then shifts all word timestamps by the preroll; same adjustment on cached replay. Regression tests added for native WAV bytes/duration/grouped offsets and JS cache alignment. User needs to reinstall the Firefox native host because installer copies the Python source. Synthetic JS method exercise passed; real speaker acceptance and full CI unverified."
+        "Revision 22 candidate: native Python inserts 96 ms of actual zero PCM before speech for >=1.8x Gecko pitch processor startup, and reports startupPrerollMs. Reader subtracts preroll from speech-duration approximations then shifts all word timestamps by the preroll; same adjustment on cached replay. Regression tests added for native WAV bytes/duration/grouped offsets and JS cache alignment. User needs to reinstall the Firefox native host because installer copies the Python source. Synthetic JS method exercise passed; real speaker acceptance and full CI unverified.",
+        "2026-10-28 user reports revision 22 caused more frequent audible high-rate pops; 96ms startup pre-roll FAILED real listening and is fully reverted in revision 23. Previously implemented deterministic WAV caching and click-fade are retained; high-rate audio still NOT ACCEPTED.",
+        "2026-10-28 comparison with pinned sguzman/edge-tts development/linux-piper-v1 confirms both normal reader paths use HTMLAudioElement playbackRate and preservesPitch; Chromium/Gecko differ in media processing. Next candidate should avoid an endless series of speculative Gecko media ramps: first isolate or bypass browser time stretch, with actual acoustic verification before promotion."
       ]
     }
   ],
   "previousPercent": 94,
-  "round": "gecko-high-rate-pcm-startup-preroll-r22",
+  "round": "rollback-preroll-failed-acceptance-r23",
   "stageCompleted": {
     "Governance": 8,
     "Core port": 21,
@@ -457,7 +459,7 @@
     },
     {
       "id": "R03",
-      "detail": "User still hears occasional pops at 1.8x despite deterministic WAV replay. Revision 22 candidate primes Gecko's pitch/time-stretch processor with 96ms real silence at start of high-rate native WAV, tracking word-clock offsets in live and cached playback. Await native reinstall, CI and user listening; do not claim fixed."
+      "detail": "Failed live acceptance: 1.8x pop still intermittent and revision 22 96ms pre-roll reportedly increased frequency. Pre-roll and word offset modifications reverted in revision 23; repo restored to functional code of revision 21, not yet acoustically accepted. Future solution requires controlled browser processing isolation (e.g. offline tempo processing then Firefox playbackRate=1), not unverified fades. No real speaker evidence of success."
     }
   ],
   "lastBrowserEvidence": {
