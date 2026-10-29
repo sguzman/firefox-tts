@@ -97,3 +97,23 @@ test("oversize WAV is not retained in the content-script cache", () => {
   assert.equal(engine.linuxPiperWavCache.size, 0);
   assert.equal(engine.linuxPiperWavCacheBytes, 0);
 });
+
+
+test("cached high-speed WAV retains native-tempo marker and final media clock", () => {
+  const { engine, request, audio } = fixture();
+  request.playbackRateApplied = true;
+  engine._storeLinuxPiperCachedWav(request, 390);
+  const prepared = engine._getLinuxPiperCachedPrepared(2, 0);
+  assert.equal(prepared.nativeTempoApplied, true);
+  assert.equal(prepared.audio[0], audio);
+  assert.equal(prepared.boundaries[0].offsetSeconds, 0);
+  engine.directPlaybackRate = 2;
+  assert.equal(engine._getLinuxPiperCachedPrepared(2, 0), null,
+    "a new requested tempo must not reuse the old accelerated PCM");
+});
+
+test("legacy or normal-rate native WAV is explicitly not marked accelerated", () => {
+  const { engine, request } = fixture();
+  engine._storeLinuxPiperCachedWav(request, 700);
+  assert.equal(engine._getLinuxPiperCachedPrepared(2, 0).nativeTempoApplied, false);
+});
