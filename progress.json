@@ -429,12 +429,14 @@
         "2026-10-28 user confirms revision 19 improved but intermittently still hiccups near 1.8x, particularly on click-to-seek; audible acceptance remains open.",
         "Revision 20 candidate: click-to-seek now ramps page-owned or background-owned live media volume to silence over 24ms before the existing authoritative cancel. Concurrent seek gestures only let the latest proceed; the old stop/release safety model is preserved. Isolated JS runtime mocks checked both audio fades and click ordering; full CI and live listening remain unverified.",
         "2026-10-28 user reports revision 20 still pops/hiccups most of the time at 1.8x; repeatedly clicking the same word reproduces it. User listening gate remains FAILED.",
-        "Revision 21 candidate reuses byte-identical, bounded in-memory WAV data for matching voice/text/rate/pronunciation revision; unlike pronunciation test bench, prior reader requested fresh stochastic Piper synthesis every click. Pure JS production-path cache exercises and syntax checks passed, but actual real Piper audio and Firefox speaker playback have not been verified. A variable pop on identical cached WAVs implicates playback; a reproducible bad WAV implicates source synthesis."
+        "Revision 21 candidate reuses byte-identical, bounded in-memory WAV data for matching voice/text/rate/pronunciation revision; unlike pronunciation test bench, prior reader requested fresh stochastic Piper synthesis every click. Pure JS production-path cache exercises and syntax checks passed, but actual real Piper audio and Firefox speaker playback have not been verified. A variable pop on identical cached WAVs implicates playback; a reproducible bad WAV implicates source synthesis.",
+        "2026-10-28 user reports revision 21 significantly reduces but does not eliminate intermittent 1.8x same-word playback pops. Acceptance is still FAILED.",
+        "Revision 22 candidate: native Python inserts 96 ms of actual zero PCM before speech for >=1.8x Gecko pitch processor startup, and reports startupPrerollMs. Reader subtracts preroll from speech-duration approximations then shifts all word timestamps by the preroll; same adjustment on cached replay. Regression tests added for native WAV bytes/duration/grouped offsets and JS cache alignment. User needs to reinstall the Firefox native host because installer copies the Python source. Synthetic JS method exercise passed; real speaker acceptance and full CI unverified."
       ]
     }
   ],
   "previousPercent": 94,
-  "round": "repeat-click-same-word-deterministic-wav-replay-r21",
+  "round": "gecko-high-rate-pcm-startup-preroll-r22",
   "stageCompleted": {
     "Governance": 8,
     "Core port": 21,
@@ -455,7 +457,7 @@
     },
     {
       "id": "R03",
-      "detail": "User reproduces 1.8x click-to-seek pop by repeatedly clicking same word, with intermittent clean attempts. Revision 21 caches the exact Piper WAV across identical clicks to isolate synthesis randomness from playback startup. Still await live audible acceptance; no claim of fix or CI green."
+      "detail": "User still hears occasional pops at 1.8x despite deterministic WAV replay. Revision 22 candidate primes Gecko's pitch/time-stretch processor with 96ms real silence at start of high-rate native WAV, tracking word-clock offsets in live and cached playback. Await native reinstall, CI and user listening; do not claim fixed."
     }
   ],
   "lastBrowserEvidence": {
