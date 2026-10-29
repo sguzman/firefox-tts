@@ -67,7 +67,7 @@ class PiperIsolationTest(unittest.TestCase):
         with patch.object(module.shutil, "which", return_value=None):
             with self.assertRaisesRegex(RuntimeError, "sudo pacman -S ffmpeg"):
                 module.offline_tempo_pcm(
-                    bytearray(b"\\x00\\x00" * 16000), 16000, 2, 1, 1.8
+                    bytearray(b"\x00\x00" * 16000), 16000, 2, 1, 1.8
                 )
 
     def test_native_tempo_is_real_pcm_acceleration_not_sample_rate_fraud(self):
@@ -101,12 +101,12 @@ class PiperIsolationTest(unittest.TestCase):
             spec.loader.exec_module(module)
         class FakeResult:
             returncode = 0
-            stdout = b"\\x00\\x00" * 40
+            stdout = b"\x00\x00" * 40
             stderr = b""
         with patch.object(module.shutil, "which", return_value="/fake/ffmpeg"), \
              patch.object(module.subprocess, "run", return_value=FakeResult()) as run:
             output = module.offline_tempo_pcm(
-                bytearray(b"\\x00\\x00" * 100), 16000, 2, 1, 4.0
+                bytearray(b"\x00\x00" * 100), 16000, 2, 1, 4.0
             )
         command = run.call_args.args[0]
         self.assertIn("atempo=2,atempo=2", command)
