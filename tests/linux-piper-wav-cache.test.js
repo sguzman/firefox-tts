@@ -97,3 +97,27 @@ test("oversize WAV is not retained in the content-script cache", () => {
   assert.equal(engine.linuxPiperWavCache.size, 0);
   assert.equal(engine.linuxPiperWavCacheBytes, 0);
 });
+
+
+test("native high-rate silent preroll shifts first highlight, including cached replay", () => {
+  const { engine, request, audio } = fixture();
+  const prerollMs = 96;
+  const durationMs = 896;
+  engine._storeLinuxPiperCachedWav(request, durationMs, prerollMs);
+  const cached = engine._getLinuxPiperCachedPrepared(2, 0);
+  assert.ok(cached);
+  assert.equal(cached.audio[0], audio, "the original WAV is reused byte-for-byte");
+  assert.equal(cached.boundariesArePrepared, true);
+  assert.equal(cached.boundaries[0].offsetSeconds, 0.096);
+  assert.equal(cached.boundaries[0].segment, undefined);
+  const offsets = cached.boundaries.map(b => b.offsetSeconds);
+  assert.ok(offsets.every(v => v >= .096), "speech must never highlight over preroll silence");
+  assert.ok(offsets.at(-1) < .896, "last boundary belongs to speech, not pre-roll");
+});
+
+test("zero preroll retains original alignment for older installed native hosts", () => {
+  const { engine, request } = fixture();
+  engine._storeLinuxPiperCachedWav(request, 800);
+  const cached = engine._getLinuxPiperCachedPrepared(2, 0);
+  assert.equal(cached.boundaries[0].offsetSeconds, 0);
+});
