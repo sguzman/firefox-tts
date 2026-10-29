@@ -59,6 +59,59 @@ class PiperIsolationTest(unittest.TestCase):
             "FIREFOX_TTS_DATA_HOME": str(self.data / "firefox-tts"),
         })
 
+    def test_native_tempo_reports_missing_ffmpeg_instead_of_falling_back(self):
+        with patch.dict(os.environ, self.env, clear=True):
+            spec = importlib.util.spec_from_file_location("firefox_tts_tempo_host", HOST)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+        with patch.object(module.shutil, "which", return_value=None):
+            with self.assertRaisesRegex(RuntimeError, "sudo pacman -S ffmpeg"):
+                module.offline_tempo_pcm(
+                    bytearray(b"\\x00\\x00" * 16000), 16000, 2, 1, 1.8
+                )
+
+    def test_native_tempo_is_real_pcm_acceleration_not_sample_rate_fraud(self):
+        with patch.dict(os.environ, self.env, clear=True):
+            spec = importlib.util.spec_from_file_location("firefox_tts_tempo_pcm", HOST)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+        if module.shutil.which("ffmpeg") is None:
+            self.skipTest("FFmpeg is not available on the CI machine")
+        # A 0.8s sine wave is real nonzero input, not synthetic silence.
+        import math
+        sample_rate = 16000
+        pcm = bytearray()
+        for index in range(sample_rate * 8 // 10):
+            sample = round(8000 * math.sin(2 * math.pi * 220 * index / sample_rate))
+            pcm.extend(struct.pack("<h", sample))
+        output = module.offline_tempo_pcm(pcm, sample_rate, 2, 1, 1.8)
+        self.assertTrue(len(output) % 2 == 0)
+        self.assertLess(len(output), len(pcm) * 0.75)
+        self.assertGreater(len(output), len(pcm) * 0.4)
+        self.assertGreater(
+            max(abs(struct.unpack_from("<h", output, n)[0])
+                for n in range(0, len(output) - 1, 2)),
+            1000, "FFmpeg should retain audible pitch-corrected PCM"
+        )
+
+    def test_native_tempo_chains_stages_above_double_speed(self):
+        with patch.dict(os.environ, self.env, clear=True):
+            spec = importlib.util.spec_from_file_location("firefox_tts_tempo_chain", HOST)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+        class FakeResult:
+            returncode = 0
+            stdout = b"\\x00\\x00" * 40
+            stderr = b""
+        with patch.object(module.shutil, "which", return_value="/fake/ffmpeg"), \
+             patch.object(module.subprocess, "run", return_value=FakeResult()) as run:
+            output = module.offline_tempo_pcm(
+                bytearray(b"\\x00\\x00" * 100), 16000, 2, 1, 4.0
+            )
+        command = run.call_args.args[0]
+        self.assertIn("atempo=2,atempo=2", command)
+        self.assertEqual(len(output), 80)
+
     def test_config_writes_never_follow_read_only_voice_directory(self):
         with patch.dict(os.environ, self.env, clear=True):
             spec = importlib.util.spec_from_file_location("firefox_tts_isolated_host", HOST)
