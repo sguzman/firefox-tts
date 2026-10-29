@@ -93,6 +93,34 @@ test("2x page-owned reader creates a new decoder for each WAV, releasing old med
 });
 
 
+test("native-accelerated 1.8x WAV always plays at 1x in the Firefox tab", async () => {
+  const engine = Object.create(LinuxPiperSpeechEngine.prototype);
+  Object.assign(engine, {
+    generation: 8, currentChunkIndex: 0, linuxPiperPlaybackIndex: -1,
+    linuxPiperUseExtensionAudio: false, directAudio: null, directObjectUrl: "",
+    directPlaybackRate: 1.8, directOutputGain: 1, requestedAt: 0,
+    directBoundaries: [], directBoundaryIndex: 0,
+    currentOptions: { sentencePauseMs: 0 }
+  });
+  for (const name of [
+    "_clearLinuxPiperProgressWatchdog", "_startLinuxPiperBoundaryClock",
+    "_armLinuxPiperProgressWatchdog", "_fillLinuxPiperPrefetch",
+    "_clearBoundaryClock", "onStatus", "onStart", "onBoundary"
+  ]) engine[name] = () => {};
+  engine._playLinuxPiperPrepared(8, {
+    generation: 8, chunkIndex: 0, nativeTempoApplied: true,
+    payload: { segments: [{ text: "Accelerated." }] },
+    audio: [new Uint8Array([0, 0])], boundaries: [],
+    boundariesArePrepared: true, prefetch: false
+  });
+  assert.equal(engine.directPlaybackRate, 1.8,
+    "requested speed remains available for synthesizing the next WAV");
+  assert.equal(engine.directMediaPlaybackRate, 1,
+    "the time-stretched WAV must never pass through Gecko's high-rate playback");
+  assert.equal(engine.directAudio.playbackRate, 1);
+  engine.directAudio.pause();
+});
+
 test("click-to-seek tapers a playing page WAV to silence before hard cancellation", async () => {
   const engine = Object.create(LinuxPiperSpeechEngine.prototype);
   const audio = new FakeAudio();
