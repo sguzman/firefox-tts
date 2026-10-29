@@ -11,7 +11,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 FIXED_TIME = (1980, 1, 1, 0, 0, 0)
 STATIC = ("LICENSE", "manifest.json")
-EXTENSIONS = {".js", ".css", ".html"}
+EXTENSIONS = {".js", ".css", ".html", ".png", ".svg"}
 
 
 def input_files() -> list[Path]:
@@ -33,7 +33,11 @@ def build(destination: Path) -> tuple[str, list[str]]:
         raise ValueError("Unexpected automatic content scripts")
     included = input_files()
     names = [p.relative_to(ROOT).as_posix() for p in included]
-    for required in manifest["background"]["scripts"] + [manifest["options_ui"]["page"]]:
+    declared_icons = set(manifest.get("icons", {}).values())
+    declared_icons.update(manifest.get("action", {}).get("default_icon", {}).values())
+    for required in manifest["background"]["scripts"] + [
+        manifest["options_ui"]["page"], *sorted(declared_icons)
+    ]:
         if required not in names:
             raise ValueError(f"Missing declared extension file: {required}")
     destination = destination.expanduser().resolve()
