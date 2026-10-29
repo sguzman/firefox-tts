@@ -10,7 +10,13 @@
     "nativeMessaging"
   ],
   "action": {
-    "default_title": "Toggle Firefox TTS reader"
+    "default_title": "Toggle Firefox TTS reader",
+    "default_icon": {
+      "16": "src/icons/fox-tts-16.png",
+      "32": "src/icons/fox-tts-32.png",
+      "48": "src/icons/fox-tts-128.svg",
+      "128": "src/icons/fox-tts-128.svg"
+    }
   },
   "background": {
     "scripts": [
@@ -41,5 +47,11 @@
       },
       "description": "Toggle Firefox TTS reader"
     }
+  },
+  "icons": {
+    "16": "src/icons/fox-tts-16.png",
+    "32": "src/icons/fox-tts-32.png",
+    "48": "src/icons/fox-tts-128.svg",
+    "128": "src/icons/fox-tts-128.svg"
   }
 }
