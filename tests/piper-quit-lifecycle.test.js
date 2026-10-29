@@ -93,7 +93,7 @@ function harness() {
   return { Engine, play, players, urls };
 }
 
-test("consecutive Piper sentences reuse one tab media element without retaining old WAVs", async () => {
+test("consecutive Piper sentences retire old tab decoder and keep only one active WAV", async () => {
   const h = harness();
   const engine = new h.Engine({});
   const first = h.play(engine, 0);
@@ -103,12 +103,16 @@ test("consecutive Piper sentences reuse one tab media element without retaining 
   assert.equal(h.players.length, 1);
   assert.equal(h.urls.size, 1);
 
-  // Replace the completed sentence source in the same media session.
+  // Each WAV gets a fresh decoder. This is intentional: Gecko carried
+  // stale media processing state when the same element was repeatedly reused.
   const second = h.play(engine, 1);
   await Promise.resolve();
   await Promise.resolve();
-  assert.equal(second, first, "Firefox should keep one unlocked audio element");
-  assert.equal(h.players.length, 1, "no new decoder for every sentence");
+  assert.notEqual(second, first, "a new WAV must get its own media element");
+  assert.equal(h.players.length, 2);
+  assert.equal(first.paused, true, "retire the old decoder before replacing it");
+  assert.equal(first.src, "", "old decoder source must be removed");
+  assert.ok(first.loadCount >= 1, "flush the retired media decoder");
   assert.equal(h.urls.size, 1, "previous sentence WAV object URL was revoked");
   assert.equal(second.paused, false);
 
